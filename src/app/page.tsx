@@ -123,6 +123,7 @@ export default function Home() {
   const [activeEditLoan, setActiveEditLoan] = useState<Loan | null>(null);
   const [activeDeleteLoan, setActiveDeleteLoan] = useState<Loan | null>(null);
   const [deleteConfirmCheck, setDeleteConfirmCheck] = useState(false);
+  const [simulationAlertText, setSimulationAlertText] = useState<string | null>(null);
   const [isIncomeOpen, setIsIncomeOpen] = useState(false);
   const [newIncome, setNewIncome] = useState("");
   const [incomeError, setIncomeError] = useState<string | null>(null);
@@ -756,14 +757,14 @@ export default function Home() {
                     onOpenPaymentModal={(l) => setActivePaymentLoan(l)}
                     onOpenEditModal={(l) => {
                       if (loan.loanId.startsWith("family-loan")) {
-                        alert("Family view simulation loans cannot be edited.");
+                        setSimulationAlertText("Family view simulation loans cannot be edited. Toggle off Family View to modify your actual commitments.");
                       } else {
                         setActiveEditLoan(l);
                       }
                     }}
                     onDeleteLoan={(loanId) => {
                       if (loan.loanId.startsWith("family-loan")) {
-                        alert("Family view simulation loans cannot be deleted.");
+                        setSimulationAlertText("Family view simulation loans cannot be deleted. Toggle off Family View to modify your actual commitments.");
                       } else {
                         setActiveDeleteLoan(loan);
                       }
@@ -797,14 +798,14 @@ export default function Home() {
                     onOpenPaymentModal={(l) => setActivePaymentLoan(l)}
                     onOpenEditModal={(l) => {
                       if (loan.loanId.startsWith("family-loan")) {
-                        alert("Family view simulation loans cannot be edited.");
+                        setSimulationAlertText("Family view simulation loans cannot be edited. Toggle off Family View to modify your actual commitments.");
                       } else {
                         setActiveEditLoan(l);
                       }
                     }}
                     onDeleteLoan={(loanId) => {
                       if (loan.loanId.startsWith("family-loan")) {
-                        alert("Family view simulation loans cannot be deleted.");
+                        setSimulationAlertText("Family view simulation loans cannot be deleted. Toggle off Family View to modify your actual commitments.");
                       } else {
                         setActiveDeleteLoan(loan);
                       }
@@ -1178,6 +1179,38 @@ export default function Home() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Simulation Info Modal */}
+      {simulationAlertText && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 relative border border-slate-100 animate-in fade-in zoom-in-95 duration-250">
+            <button
+              onClick={() => setSimulationAlertText(null)}
+              className="absolute right-4 top-4 p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-50 transition-all cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-4 border border-purple-100">
+              <Users className="w-6 h-6 animate-pulse" />
+            </div>
+
+            <h3 className="text-base font-extrabold text-slate-800 tracking-tight mb-1">
+              Simulation Item
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-6">
+              {simulationAlertText}
+            </p>
+
+            <button
+              onClick={() => setSimulationAlertText(null)}
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-all cursor-pointer shadow-sm"
+            >
+              Got it
+            </button>
           </div>
         </div>
       )}
