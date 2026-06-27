@@ -133,12 +133,8 @@ export default function LoanCard({
           )}
 
           <button
-            onClick={() => {
-              if (confirm(`Are you sure you want to remove the loan "${loan.nickname}"?`)) {
-                onDeleteLoan(loan.loanId);
-              }
-            }}
-            className="p-1.5 text-slate-305 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
+            onClick={() => onDeleteLoan(loan.loanId)}
+            className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
             title="Delete loan record"
           >
             <Trash2 className="w-4 h-4" />
