@@ -1,0 +1,17 @@
+# Settings for Firebase App Hosting
+# See https://firebase.google.com/docs/app-hosting/configure
+
+# Environment variables
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyAwBqWSiLRD8VfWr068-F6NfejlvL4yOws"
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "calmemi.firebaseapp.com"
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "calmemi"
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "calmemi.firebasestorage.app"
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "1057361534051"
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:1057361534051:web:903877f1681d2f29846c56"
