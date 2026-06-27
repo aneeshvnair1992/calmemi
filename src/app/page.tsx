@@ -12,7 +12,7 @@ import {
   UserProfile,
   Loan
 } from "../lib/storage";
-import { formatCurrency, getEstimatedOutstanding } from "../lib/utils";
+import { formatCurrency, getEstimatedOutstanding, setGlobalCurrency, getGlobalCurrency } from "../lib/utils";
 import AuthPage from "../components/AuthPage";
 import OnboardingWizard from "../components/OnboardingWizard";
 import BreathingRoomWidget from "../components/BreathingRoomWidget";
@@ -21,6 +21,7 @@ import Timeline from "../components/Timeline";
 import AddLoanModal from "../components/AddLoanModal";
 import PaymentModal from "../components/PaymentModal";
 import AdminPanel from "../components/AdminPanel";
+import EditLoanModal from "../components/EditLoanModal";
 import {
   Plus,
   Heart,
@@ -35,7 +36,8 @@ import {
   X,
   Users,
   TrendingDown,
-  BookOpen
+  BookOpen,
+  Settings
 } from "lucide-react";
 
 interface DashboardLoan extends Loan {
@@ -117,15 +119,27 @@ export default function Home() {
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [activePaymentLoan, setActivePaymentLoan] = useState<Loan | null>(null);
+  const [activeEditLoan, setActiveEditLoan] = useState<Loan | null>(null);
   const [isIncomeOpen, setIsIncomeOpen] = useState(false);
   const [newIncome, setNewIncome] = useState("");
   const [incomeError, setIncomeError] = useState<string | null>(null);
+
+  // Profile Settings States
+  const [isProfileSettingsOpen, setIsProfileSettingsOpen] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [profileIncome, setProfileIncome] = useState("");
+  const [profileCurrency, setProfileCurrency] = useState("USD");
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   // Subscribe to Auth State
   useEffect(() => {
     const unsubscribe = subscribeAuth((user) => {
       setCurrentUser(user);
       setAuthLoading(false);
+      if (user?.currency) {
+        setGlobalCurrency(user.currency);
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -337,6 +351,66 @@ export default function Home() {
     }
   };
 
+  const openProfileSettings = () => {
+    const activeUser = impersonatedUser || currentUser;
+    if (activeUser) {
+      setProfileName(activeUser.name);
+      setProfileIncome(activeUser.monthlyIncome.toString());
+      setProfileCurrency(activeUser.currency || "USD");
+      setProfileError(null);
+      setIsProfileSettingsOpen(true);
+    }
+  };
+
+  const handleProfileSettingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError(null);
+    setProfileLoading(true);
+
+    if (!profileName.trim() || !profileIncome.trim()) {
+      setProfileError("Name and income cannot be empty.");
+      setProfileLoading(false);
+      return;
+    }
+
+    const incomeVal = parseFloat(profileIncome);
+    if (isNaN(incomeVal) || incomeVal < 0) {
+      setProfileError("Please enter a valid monthly income.");
+      setProfileLoading(false);
+      return;
+    }
+
+    const activeUser = impersonatedUser || currentUser;
+    if (!activeUser) return;
+
+    try {
+      await updateProfile(activeUser.uid, {
+        name: profileName.trim(),
+        monthlyIncome: incomeVal,
+        currency: profileCurrency,
+      });
+      setGlobalCurrency(profileCurrency);
+
+      const updated = {
+        ...activeUser,
+        name: profileName.trim(),
+        monthlyIncome: incomeVal,
+        currency: profileCurrency,
+      };
+
+      if (impersonatedUser) {
+        setImpersonatedUser(updated);
+      } else if (currentUser) {
+        setCurrentUser(updated);
+      }
+      setIsProfileSettingsOpen(false);
+    } catch (err: any) {
+      setProfileError(err.message || "Failed to update profile settings.");
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   const activeUser = impersonatedUser || currentUser;
 
   // Family View data injection
@@ -389,6 +463,8 @@ export default function Home() {
   const activeDueDays = activeLoansList.map((l) => l.emiDayOfMonth);
   const latestDueDay = activeDueDays.length > 0 ? Math.max(...activeDueDays) : 0;
   const activeEmiSum = activeLoansList.reduce((sum, l) => sum + l.emiAmount, 0);
+
+  const currencySymbol = getGlobalCurrency() === "INR" ? "₹" : getGlobalCurrency() === "EUR" ? "€" : getGlobalCurrency() === "GBP" ? "£" : "$";
 
   // Snowball Simulator math
   const snowballStats = simulateSnowball(activeLoansList, snowballExtra);
@@ -475,9 +551,16 @@ export default function Home() {
                 Admin Panel
               </button>
             )}
-            <span className="text-xs font-semibold text-slate-500 hidden sm:inline">
+            <span className="text-xs font-semibold text-slate-500 hidden md:inline">
               Welcome back, <strong className="text-slate-800">{currentUser.name}</strong>
             </span>
+            <button
+              onClick={openProfileSettings}
+              className="p-2 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-xl transition-all cursor-pointer shadow-sm"
+              title="Profile & Currency Settings"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
             <button
               onClick={() => {
                 signOutUser().then(() => {
@@ -485,7 +568,7 @@ export default function Home() {
                   setCurrentUser(null);
                 });
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 bg-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 bg-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
               Sign Out
@@ -668,6 +751,13 @@ export default function Home() {
                     onToggleSkip={handleToggleSkip}
                     onTogglePause={handleTogglePause}
                     onOpenPaymentModal={(l) => setActivePaymentLoan(l)}
+                    onOpenEditModal={(l) => {
+                      if (loan.loanId.startsWith("family-loan")) {
+                        alert("Family view simulation loans cannot be edited.");
+                      } else {
+                        setActiveEditLoan(l);
+                      }
+                    }}
                     onDeleteLoan={(loanId) => {
                       if (loan.loanId.startsWith("family-loan")) {
                         alert("Family view simulation loans cannot be deleted.");
@@ -702,6 +792,13 @@ export default function Home() {
                     onToggleSkip={handleToggleSkip}
                     onTogglePause={handleTogglePause}
                     onOpenPaymentModal={(l) => setActivePaymentLoan(l)}
+                    onOpenEditModal={(l) => {
+                      if (loan.loanId.startsWith("family-loan")) {
+                        alert("Family view simulation loans cannot be edited.");
+                      } else {
+                        setActiveEditLoan(l);
+                      }
+                    }}
                     onDeleteLoan={(loanId) => {
                       if (loan.loanId.startsWith("family-loan")) {
                         alert("Family view simulation loans cannot be deleted.");
@@ -752,9 +849,9 @@ export default function Home() {
               />
               
               <div className="flex justify-between text-[10px] font-bold text-slate-300">
-                <span>$0</span>
-                <span>$5,000</span>
-                <span>$10,000</span>
+                <span>{currencySymbol}0</span>
+                <span>{currencySymbol}5,000</span>
+                <span>{currencySymbol}10,000</span>
               </div>
             </div>
 
@@ -869,7 +966,7 @@ export default function Home() {
                   Net Monthly Income
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-semibold">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-semibold">{currencySymbol}</span>
                   <input
                     id="edit-income"
                     type="number"
@@ -900,6 +997,111 @@ export default function Home() {
                   className="flex-1 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-all cursor-pointer"
                 >
                   Update Income
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Loan Modal */}
+      {activeEditLoan && (
+        <EditLoanModal
+          loan={activeEditLoan}
+          onClose={() => setActiveEditLoan(null)}
+          onUpdateLoan={async (loanId, updatedData) => {
+            const activeUser = impersonatedUser || currentUser;
+            if (!activeUser) return;
+            await updateLoan(activeUser.uid, loanId, updatedData);
+          }}
+        />
+      )}
+
+      {/* Profile Settings Modal */}
+      {isProfileSettingsOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 relative border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setIsProfileSettingsOpen(false)}
+              className="absolute right-4 top-4 p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-50 transition-all cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-base font-extrabold text-slate-800 tracking-tight mb-1">
+              Profile Settings
+            </h3>
+            <p className="text-xs text-slate-400 font-medium mb-4">
+              Update your account details and currency format preference.
+            </p>
+
+            <form onSubmit={handleProfileSettingsSubmit} className="space-y-4">
+              {/* Name */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1.5" htmlFor="prof-name">
+                  Full Name
+                </label>
+                <input
+                  id="prof-name"
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-705 text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 transition-all font-semibold"
+                />
+              </div>
+
+              {/* Monthly Income */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1.5" htmlFor="prof-income">
+                  Monthly Income
+                </label>
+                <input
+                  id="prof-income"
+                  type="number"
+                  value={profileIncome}
+                  onChange={(e) => setProfileIncome(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-705 text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 transition-all font-bold"
+                />
+              </div>
+
+              {/* Preferred Currency */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1.5" htmlFor="prof-currency">
+                  Preferred Currency
+                </label>
+                <select
+                  id="prof-currency"
+                  value={profileCurrency}
+                  onChange={(e) => setProfileCurrency(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 bg-white"
+                >
+                  <option value="USD">USD ($) - US Dollar</option>
+                  <option value="INR">INR (₹) - Indian Rupee</option>
+                  <option value="EUR">EUR (€) - Euro</option>
+                  <option value="GBP">GBP (£) - British Pound</option>
+                </select>
+              </div>
+
+              {profileError && (
+                <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 text-xs rounded-xl">
+                  {profileError}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileSettingsOpen(false)}
+                  className="flex-1 px-4 py-2 bg-slate-150 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={profileLoading}
+                  className="flex-1 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-all cursor-pointer"
+                >
+                  {profileLoading ? "Saving..." : "Save Settings"}
                 </button>
               </div>
             </form>

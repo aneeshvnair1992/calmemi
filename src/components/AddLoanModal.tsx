@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Loan } from "../lib/storage";
-import { getNextEmiDateString } from "../lib/utils";
+import { getNextEmiDateString, getGlobalCurrency } from "../lib/utils";
 import { X, Info } from "lucide-react";
 
 interface AddLoanModalProps {
@@ -22,6 +22,7 @@ const LOAN_TYPES = [
 ];
 
 export default function AddLoanModal({ onClose, onAddLoan }: AddLoanModalProps) {
+  const currencySymbol = getGlobalCurrency() === "INR" ? "₹" : getGlobalCurrency() === "EUR" ? "€" : getGlobalCurrency() === "GBP" ? "£" : "$";
   const [nickname, setNickname] = useState("");
   const [provider, setProvider] = useState("");
   const [loanType, setLoanType] = useState(LOAN_TYPES[0]);
@@ -195,7 +196,7 @@ export default function AddLoanModal({ onClose, onAddLoan }: AddLoanModalProps) 
                 Total Loan Amount
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-semibold">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-semibold">{currencySymbol}</span>
                 <input
                   id="totalAmount"
                   type="number"
@@ -214,7 +215,7 @@ export default function AddLoanModal({ onClose, onAddLoan }: AddLoanModalProps) 
                 Monthly EMI Amount
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-semibold">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-semibold">{currencySymbol}</span>
                 <input
                   id="emiAmount"
                   type="number"

@@ -17,7 +17,8 @@ import {
   ArrowRight,
   TrendingDown,
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  Pencil
 } from "lucide-react";
 
 interface LoanCardProps {
@@ -25,6 +26,7 @@ interface LoanCardProps {
   onToggleSkip: (loanId: string) => void;
   onTogglePause: (loanId: string) => void;
   onOpenPaymentModal: (loan: Loan) => void;
+  onOpenEditModal?: (loan: Loan) => void;
   onDeleteLoan: (loanId: string) => void;
 }
 
@@ -44,6 +46,7 @@ export default function LoanCard({
   onToggleSkip,
   onTogglePause,
   onOpenPaymentModal,
+  onOpenEditModal,
   onDeleteLoan,
 }: LoanCardProps) {
   const IconComponent = LOAN_TYPE_ICONS[loan.loanType] || CircleDollarSign;
@@ -119,13 +122,23 @@ export default function LoanCard({
             </span>
           )}
           
+          {loan.status !== "Closed" && onOpenEditModal && (
+            <button
+              onClick={() => onOpenEditModal(loan)}
+              className="p-1.5 text-slate-350 hover:text-slate-650 hover:text-slate-700 rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
+              title="Edit loan details"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+
           <button
             onClick={() => {
               if (confirm(`Are you sure you want to remove the loan "${loan.nickname}"?`)) {
                 onDeleteLoan(loan.loanId);
               }
             }}
-            className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
+            className="p-1.5 text-slate-305 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
             title="Delete loan record"
           >
             <Trash2 className="w-4 h-4" />

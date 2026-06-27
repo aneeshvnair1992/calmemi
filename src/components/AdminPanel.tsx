@@ -8,9 +8,10 @@ import {
   adminCreateUser,
   getUserLoans,
   UserProfile,
-  Loan
+  Loan,
+  updateProfile
 } from "../lib/storage";
-import { formatCurrency } from "../lib/utils";
+import { formatCurrency, setGlobalCurrency } from "../lib/utils";
 import {
   Users,
   TrendingUp,
@@ -24,7 +25,9 @@ import {
   Lock,
   ChevronRight,
   UserCheck,
-  BookOpen
+  BookOpen,
+  Pencil,
+  Settings
 } from "lucide-react";
 
 interface AdminPanelProps {
@@ -57,6 +60,23 @@ export default function AdminPanel({ currentAdmin, onImpersonateUser, onClose }:
   const [newUserRole, setNewUserRole] = useState<"admin" | "user">("user");
   const [formError, setFormError] = useState<string | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
+
+  // Admin details editing state
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [adminName, setAdminName] = useState(currentAdmin.name);
+  const [adminIncome, setAdminIncome] = useState(currentAdmin.monthlyIncome.toString());
+  const [adminCurrency, setAdminCurrency] = useState(currentAdmin.currency || "USD");
+  const [adminError, setAdminError] = useState<string | null>(null);
+  const [adminLoading, setAdminLoading] = useState(false);
+
+  // User editing states
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editIncome, setEditIncome] = useState("");
+  const [editCurrency, setEditCurrency] = useState("USD");
+  const [editRole, setEditRole] = useState<"admin" | "user">("user");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
 
   // Load users and calculate stats
   const fetchUsersAndStats = async () => {
@@ -187,6 +207,84 @@ export default function AdminPanel({ currentAdmin, onImpersonateUser, onClose }:
     }
   };
 
+  const handleEditUserClick = (user: UserProfile) => {
+    setEditingUser(user);
+    setEditName(user.name);
+    setEditIncome(user.monthlyIncome.toString());
+    setEditCurrency(user.currency || "USD");
+    setEditRole(user.role || "user");
+    setEditError(null);
+  };
+
+  const handleEditUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setEditError(null);
+    setEditLoading(true);
+
+    if (!editName.trim() || !editIncome.trim()) {
+      setEditError("Name and income cannot be empty.");
+      setEditLoading(false);
+      return;
+    }
+
+    const incomeVal = parseFloat(editIncome);
+    if (isNaN(incomeVal) || incomeVal < 0) {
+      setEditError("Please enter a valid monthly income.");
+      setEditLoading(false);
+      return;
+    }
+
+    try {
+      await updateProfile(editingUser.uid, {
+        name: editName.trim(),
+        monthlyIncome: incomeVal,
+        currency: editCurrency,
+        role: editRole,
+      });
+      setEditingUser(null);
+      fetchUsersAndStats();
+    } catch (err: any) {
+      setEditError(err.message || "Failed to update user details.");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleAdminSettingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminError(null);
+    setAdminLoading(true);
+
+    if (!adminName.trim() || !adminIncome.trim()) {
+      setAdminError("Name and income cannot be empty.");
+      setAdminLoading(false);
+      return;
+    }
+
+    const incomeVal = parseFloat(adminIncome);
+    if (isNaN(incomeVal) || incomeVal < 0) {
+      setAdminError("Please enter a valid monthly income.");
+      setAdminLoading(false);
+      return;
+    }
+
+    try {
+      await updateProfile(currentAdmin.uid, {
+        name: adminName.trim(),
+        monthlyIncome: incomeVal,
+        currency: adminCurrency,
+      });
+      setGlobalCurrency(adminCurrency);
+      setIsSettingsOpen(false);
+      fetchUsersAndStats();
+    } catch (err: any) {
+      setAdminError(err.message || "Failed to update settings.");
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
   // Filtered list
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
@@ -224,12 +322,21 @@ export default function AdminPanel({ currentAdmin, onImpersonateUser, onClose }:
               <p className="text-[10px] text-slate-400 font-medium">Master Admin Directory</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-slate-200 hover:border-slate-350 bg-white hover:bg-slate-55/30 text-slate-700 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
-          >
-            Go to My Dashboard
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 border border-slate-200 hover:border-slate-350 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-xl transition-all cursor-pointer shadow-sm"
+              title="System & Profile Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-slate-200 hover:border-slate-350 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
+            >
+              Go to My Dashboard
+            </button>
+          </div>
         </div>
       </header>
 
@@ -402,6 +509,15 @@ export default function AdminPanel({ currentAdmin, onImpersonateUser, onClose }:
                             <Eye className="w-4 h-4" />
                           </button>
 
+                          {/* Edit user details */}
+                          <button
+                            onClick={() => handleEditUserClick(user)}
+                            title="Edit User Details"
+                            className="p-1.5 text-slate-500 hover:text-slate-900 border border-slate-200 bg-white hover:bg-slate-50 rounded-xl transition-all cursor-pointer"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+
                           {/* Toggle permissions */}
                           <button
                             onClick={() => handleToggleRole(user)}
@@ -548,6 +664,212 @@ export default function AdminPanel({ currentAdmin, onImpersonateUser, onClose }:
                 >
                   {formSubmitting ? "Creating..." : "Create Account"}
                   {!formSubmitting && <ChevronRight className="w-4 h-4" />}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white border border-slate-100 rounded-3xl shadow-xl p-8 relative animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setIsSettingsOpen(false)}
+              className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-800 mb-4">
+              <Settings className="w-5 h-5" />
+            </div>
+
+            <h3 className="text-lg font-extrabold text-slate-950 mb-1">System & Admin Settings</h3>
+            <p className="text-xs text-slate-400 mb-6">Manage default currencies and your administrative profile.</p>
+
+            <form onSubmit={handleAdminSettingsSubmit} className="space-y-4">
+              {/* Default System Currency */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5" htmlFor="currency">
+                  App Default Currency
+                </label>
+                <select
+                  id="currency"
+                  value={adminCurrency}
+                  onChange={(e) => setAdminCurrency(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 text-sm text-slate-800 transition-all"
+                >
+                  <option value="USD">USD ($) - US Dollar</option>
+                  <option value="INR">INR (₹) - Indian Rupee</option>
+                  <option value="EUR">EUR (€) - Euro</option>
+                  <option value="GBP">GBP (£) - British Pound</option>
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  💡 This alters currency displays globally across standard screens and dashboards.
+                </p>
+              </div>
+
+              {/* Admin Name */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5" htmlFor="admin-name-field">
+                  Admin Name
+                </label>
+                <input
+                  id="admin-name-field"
+                  type="text"
+                  value={adminName}
+                  onChange={(e) => setAdminName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 text-sm text-slate-800 transition-all"
+                />
+              </div>
+
+              {/* Admin Income */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5" htmlFor="admin-income-field">
+                  Admin Monthly Income
+                </label>
+                <input
+                  id="admin-income-field"
+                  type="number"
+                  value={adminIncome}
+                  onChange={(e) => setAdminIncome(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 text-sm text-slate-800 transition-all"
+                />
+              </div>
+
+              {adminError && (
+                <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 text-xs rounded-xl">
+                  {adminError}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="flex-1 px-4 py-3 border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold rounded-xl text-sm transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={adminLoading}
+                  className="flex-[2] px-4 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {adminLoading ? "Saving..." : "Save Settings"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Details Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white border border-slate-100 rounded-3xl shadow-xl p-8 relative animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setEditingUser(null)}
+              className="absolute top-6 right-6 text-slate-400 hover:text-slate-650 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-800 mb-4">
+              <Pencil className="w-5 h-5 animate-pulse" />
+            </div>
+
+            <h3 className="text-lg font-extrabold text-slate-950 mb-1">Edit User Profile</h3>
+            <p className="text-xs text-slate-400 mb-6">Modify details for <strong className="text-slate-700">{editingUser.name}</strong>.</p>
+
+            <form onSubmit={handleEditUserSubmit} className="space-y-4">
+              {/* Full Name */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5" htmlFor="edit-name">
+                  Full Name
+                </label>
+                <input
+                  id="edit-name"
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 text-sm text-slate-800 transition-all"
+                />
+              </div>
+
+              {/* Monthly Income */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5" htmlFor="edit-income">
+                  Monthly Income
+                </label>
+                <input
+                  id="edit-income"
+                  type="number"
+                  value={editIncome}
+                  onChange={(e) => setEditIncome(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 text-sm text-slate-800 transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Currency selection */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5" htmlFor="edit-currency">
+                    User Currency
+                  </label>
+                  <select
+                    id="edit-currency"
+                    value={editCurrency}
+                    onChange={(e) => setEditCurrency(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 text-sm text-slate-800 transition-all"
+                  >
+                    <option value="USD">USD ($)</option>
+                    <option value="INR">INR (₹)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                  </select>
+                </div>
+
+                {/* Role selection */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5" htmlFor="edit-role">
+                    User Role
+                  </label>
+                  <select
+                    id="edit-role"
+                    value={editRole}
+                    onChange={(e: any) => setEditRole(e.target.value)}
+                    disabled={editingUser.uid === currentAdmin.uid}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 text-sm text-slate-800 transition-all disabled:opacity-50"
+                  >
+                    <option value="user">User</option>
+                    <option value="admin">Administrator</option>
+                  </select>
+                </div>
+              </div>
+
+              {editError && (
+                <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 text-xs rounded-xl">
+                  {editError}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="flex-1 px-4 py-3 border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold rounded-xl text-sm transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="flex-[2] px-4 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {editLoading ? "Saving..." : "Save Details"}
                 </button>
               </div>
             </form>

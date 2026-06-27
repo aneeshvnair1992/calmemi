@@ -35,6 +35,7 @@ export interface UserProfile {
   createdAt: any;
   onboardingCompleted: boolean;
   role?: "admin" | "user";
+  currency?: string; // e.g. "USD", "INR", "EUR", "GBP"
 }
 
 export interface Loan {

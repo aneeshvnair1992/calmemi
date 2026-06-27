@@ -1,12 +1,30 @@
+let activeCurrencyCode = "USD";
+
+export function setGlobalCurrency(code: string) {
+  activeCurrencyCode = code;
+}
+
+export function getGlobalCurrency(): string {
+  return activeCurrencyCode;
+}
+
 /**
- * Format a number as currency (USD format by default).
+ * Format a number as currency (USD format by default, supports INR en-IN formatting).
  */
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(amount);
+  try {
+    return new Intl.NumberFormat(activeCurrencyCode === "INR" ? "en-IN" : "en-US", {
+      style: "currency",
+      currency: activeCurrencyCode,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch (e) {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  }
 }
 
 /**
