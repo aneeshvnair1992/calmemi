@@ -37,7 +37,8 @@ import {
   Users,
   TrendingDown,
   BookOpen,
-  Settings
+  Settings,
+  Trash2
 } from "lucide-react";
 
 interface DashboardLoan extends Loan {
@@ -120,6 +121,8 @@ export default function Home() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [activePaymentLoan, setActivePaymentLoan] = useState<Loan | null>(null);
   const [activeEditLoan, setActiveEditLoan] = useState<Loan | null>(null);
+  const [activeDeleteLoan, setActiveDeleteLoan] = useState<Loan | null>(null);
+  const [deleteConfirmCheck, setDeleteConfirmCheck] = useState(false);
   const [isIncomeOpen, setIsIncomeOpen] = useState(false);
   const [newIncome, setNewIncome] = useState("");
   const [incomeError, setIncomeError] = useState<string | null>(null);
@@ -762,7 +765,7 @@ export default function Home() {
                       if (loan.loanId.startsWith("family-loan")) {
                         alert("Family view simulation loans cannot be deleted.");
                       } else {
-                        deleteLoan(activeUser.uid, loan.loanId);
+                        setActiveDeleteLoan(loan);
                       }
                     }}
                   />
@@ -803,7 +806,7 @@ export default function Home() {
                       if (loan.loanId.startsWith("family-loan")) {
                         alert("Family view simulation loans cannot be deleted.");
                       } else {
-                        deleteLoan(activeUser.uid, loan.loanId);
+                        setActiveDeleteLoan(loan);
                       }
                     }}
                   />
@@ -1105,6 +1108,76 @@ export default function Home() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {activeDeleteLoan && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 relative border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => {
+                setActiveDeleteLoan(null);
+                setDeleteConfirmCheck(false);
+              }}
+              className="absolute right-4 top-4 p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-50 transition-all cursor-pointer animate-none"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4 border border-rose-100">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <h3 className="text-base font-extrabold text-slate-800 tracking-tight mb-1">
+              Delete Commitment?
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-4">
+              You are about to remove <strong className="text-slate-700 font-bold">{activeDeleteLoan.nickname}</strong>. 
+              This will permanently delete this loan entry, all historical payment records, and exclude its EMI obligation from your timeline.
+            </p>
+
+            <div className="space-y-4">
+              <label className="flex items-start gap-2.5 p-3.5 bg-rose-50/40 border border-rose-100/70 rounded-2xl cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={deleteConfirmCheck}
+                  onChange={(e) => setDeleteConfirmCheck(e.target.checked)}
+                  className="mt-0.5 rounded border-rose-200 text-rose-600 focus:ring-rose-500/20 cursor-pointer"
+                />
+                <span className="text-[11px] text-rose-800 font-semibold leading-snug">
+                  I understand that this action is irreversible and will delete all payment history for this loan.
+                </span>
+              </label>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveDeleteLoan(null);
+                    setDeleteConfirmCheck(false);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const activeUser = impersonatedUser || currentUser;
+                    if (activeUser && activeDeleteLoan) {
+                      await deleteLoan(activeUser.uid, activeDeleteLoan.loanId);
+                      setActiveDeleteLoan(null);
+                      setDeleteConfirmCheck(false);
+                    }
+                  }}
+                  disabled={!deleteConfirmCheck}
+                  className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:pointer-events-none text-white font-bold rounded-xl text-xs transition-all cursor-pointer"
+                >
+                  Delete Forever
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
