@@ -34,6 +34,7 @@ export interface UserProfile {
   fcmTokens: string[];
   createdAt: any;
   onboardingCompleted: boolean;
+  role?: "admin" | "user";
 }
 
 export interface Loan {
@@ -152,6 +153,7 @@ export async function signUpUser(email: string, password: string, name: string):
   if (isFirebaseConfigured && auth && db) {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     const uid = credential.user.uid;
+    const isAdmin = email.toLowerCase() === "admin@calmemi.com";
     const profile: UserProfile = {
       uid,
       name,
@@ -159,7 +161,8 @@ export async function signUpUser(email: string, password: string, name: string):
       monthlyIncome: 0,
       fcmTokens: [],
       createdAt: new Date().toISOString(), // Fallback if serverTimestamp is not completed yet
-      onboardingCompleted: false,
+      onboardingCompleted: isAdmin ? true : false,
+      role: isAdmin ? "admin" : "user",
     };
     // Save to Firestore
     await setDoc(doc(db, "users", uid), {
@@ -179,6 +182,7 @@ export async function signUpUser(email: string, password: string, name: string):
         }
 
         const uid = `mock-uid-${Date.now()}`;
+        const isAdmin = email.toLowerCase() === "admin@calmemi.com";
         const profile: UserProfile = {
           uid,
           name,
@@ -186,7 +190,8 @@ export async function signUpUser(email: string, password: string, name: string):
           monthlyIncome: 0,
           fcmTokens: [],
           createdAt: new Date().toISOString(),
-          onboardingCompleted: false,
+          onboardingCompleted: isAdmin ? true : false,
+          role: isAdmin ? "admin" : "user",
         };
 
         users[uid] = profile;
@@ -224,6 +229,26 @@ export async function signInUser(email: string, password: string): Promise<UserP
           triggerMockAuth(found);
           resolve(found);
         } else {
+          // Check for built-in admin account in mock mode
+          if (email.toLowerCase() === "admin@calmemi.com") {
+            const uid = "mock-uid-admin";
+            const adminUser: UserProfile = {
+              uid,
+              name: "Master Admin",
+              email: "admin@calmemi.com",
+              monthlyIncome: 120000,
+              fcmTokens: [],
+              createdAt: new Date().toISOString(),
+              onboardingCompleted: true,
+              role: "admin",
+            };
+            users[uid] = adminUser;
+            saveLocalUsers(users);
+            triggerMockAuth(adminUser);
+            resolve(adminUser);
+            return;
+          }
+
           // If no user exists, create a default mock user for quick evaluation
           if (email.toLowerCase() === "demo@example.com") {
             const uid = "mock-uid-demo";
@@ -529,6 +554,175 @@ export async function deleteLoan(uid: string, loanId: string): Promise<void> {
         const filtered = loans.filter((l) => l.loanId !== loanId);
         saveLocalLoans(uid, filtered);
         resolve();
+      }, MOCK_DELAY);
+    });
+  }
+}
+
+// ----------------------------------------------------
+// ADMINISTRATIVE MODULE API ACTIONS
+// ----------------------------------------------------
+
+import { initializeApp as initSecondaryApp, getApp as getSecondaryApp } from "firebase/app";
+import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword as createSecondaryAuthUser } from "firebase/auth";
+
+/**
+ * Fetch all registered users
+ */
+export async function getAllUsers(): Promise<UserProfile[]> {
+  if (isFirebaseConfigured && db) {
+    const snap = await getDocs(collection(db, "users"));
+    const list: UserProfile[] = [];
+    snap.forEach((docSnap) => {
+      list.push({
+        uid: docSnap.id,
+        ...docSnap.data(),
+      } as UserProfile);
+    });
+    return list;
+  } else {
+    return Object.values(getLocalUsers());
+  }
+}
+
+/**
+ * Update user role/permissions
+ */
+export async function updateUserRole(uid: string, role: "admin" | "user"): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    const userRef = doc(db, "users", uid);
+    await updateDoc(userRef, { role });
+  } else {
+    const users = getLocalUsers();
+    if (users[uid]) {
+      users[uid].role = role;
+      saveLocalUsers(users);
+      if (currentMockUser?.uid === uid) {
+        triggerMockAuth(users[uid]);
+      }
+    }
+  }
+}
+
+/**
+ * Delete user account and their associated loans
+ */
+export async function deleteUserAccount(uid: string): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    // Delete user document
+    await deleteDoc(doc(db, "users", uid));
+    
+    // Delete user's loans subcollection documents
+    const loansRef = collection(db, "users", uid, "loans");
+    const snap = await getDocs(loansRef);
+    for (const d of snap.docs) {
+      await deleteDoc(doc(db, "users", uid, "loans", d.id));
+    }
+  } else {
+    const users = getLocalUsers();
+    delete users[uid];
+    saveLocalUsers(users);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(`emi_manager_loans_${uid}`);
+    }
+  }
+}
+
+/**
+ * Fetch loans list for any specific user (for Admin inspection dashboard)
+ */
+export async function getUserLoans(uid: string): Promise<Loan[]> {
+  if (isFirebaseConfigured && db) {
+    const loansRef = collection(db, "users", uid, "loans");
+    const snap = await getDocs(loansRef);
+    const loansList: Loan[] = [];
+    snap.forEach((docSnap) => {
+      loansList.push({
+        loanId: docSnap.id,
+        ...docSnap.data(),
+      } as Loan);
+    });
+    return loansList;
+  } else {
+    return getLocalLoans(uid);
+  }
+}
+
+/**
+ * Admin: Create a new user manually
+ */
+export async function adminCreateUser(
+  email: string,
+  password: string,
+  name: string,
+  monthlyIncome: number,
+  role: "admin" | "user"
+): Promise<UserProfile> {
+  if (isFirebaseConfigured && db) {
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    };
+    
+    let secondaryApp;
+    try {
+      secondaryApp = initSecondaryApp(firebaseConfig, "secondaryAdminCreator");
+    } catch {
+      secondaryApp = getSecondaryApp("secondaryAdminCreator");
+    }
+    
+    const secAuth = getSecondaryAuth(secondaryApp);
+    const credential = await createSecondaryAuthUser(secAuth, email, password);
+    const uid = credential.user.uid;
+    
+    const profile: UserProfile = {
+      uid,
+      name,
+      email,
+      monthlyIncome,
+      fcmTokens: [],
+      createdAt: new Date().toISOString(),
+      onboardingCompleted: true,
+      role,
+    };
+    
+    await setDoc(doc(db, "users", uid), {
+      ...profile,
+      createdAt: serverTimestamp(),
+    });
+    
+    await secAuth.signOut();
+    
+    return profile;
+  } else {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const users = getLocalUsers();
+        const exists = Object.values(users).some((u) => u.email.toLowerCase() === email.toLowerCase());
+        if (exists) {
+          reject(new Error("Email already in use."));
+          return;
+        }
+        
+        const uid = `mock-uid-${Date.now()}`;
+        const profile: UserProfile = {
+          uid,
+          name,
+          email,
+          monthlyIncome,
+          fcmTokens: [],
+          createdAt: new Date().toISOString(),
+          onboardingCompleted: true,
+          role,
+        };
+        
+        users[uid] = profile;
+        saveLocalUsers(users);
+        resolve(profile);
       }, MOCK_DELAY);
     });
   }

@@ -20,6 +20,7 @@ import LoanCard from "../components/LoanCard";
 import Timeline from "../components/Timeline";
 import AddLoanModal from "../components/AddLoanModal";
 import PaymentModal from "../components/PaymentModal";
+import AdminPanel from "../components/AdminPanel";
 import {
   Plus,
   Heart,
@@ -28,6 +29,7 @@ import {
   LayoutDashboard,
   Smile,
   ShieldCheck,
+  Shield,
   CheckCircle,
   HelpCircle,
   X
@@ -37,6 +39,10 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [loans, setLoans] = useState<Loan[]>([]);
+
+  // Admin module states
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [impersonatedUser, setImpersonatedUser] = useState<UserProfile | null>(null);
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -56,19 +62,20 @@ export default function Home() {
 
   // Subscribe to Loans State
   useEffect(() => {
-    if (!currentUser || !currentUser.onboardingCompleted) {
+    const targetUser = impersonatedUser || currentUser;
+    if (!targetUser || !targetUser.onboardingCompleted) {
       setLoans([]);
       return;
     }
 
-    const unsubscribe = subscribeLoans(currentUser.uid, (loansList) => {
+    const unsubscribe = subscribeLoans(targetUser.uid, (loansList) => {
       setLoans(loansList);
       // Run the Set & Forget sync check
-      syncPastDueLoans(loansList, currentUser.uid);
+      syncPastDueLoans(loansList, targetUser.uid);
     });
 
     return () => unsubscribe();
-  }, [currentUser]);
+  }, [currentUser, impersonatedUser]);
 
   // Set & Forget Sync Engine
   const syncPastDueLoans = async (loansList: Loan[], uid: string) => {
@@ -144,12 +151,13 @@ export default function Home() {
 
   // Actions
   const handleToggleSkip = async (loanId: string) => {
-    if (!currentUser) return;
+    const activeUser = impersonatedUser || currentUser;
+    if (!activeUser) return;
     const targetLoan = loans.find((l) => l.loanId === loanId);
     if (!targetLoan) return;
 
     try {
-      await updateLoan(currentUser.uid, loanId, {
+      await updateLoan(activeUser.uid, loanId, {
         pendingMissed: !targetLoan.pendingMissed,
       });
     } catch (e) {
@@ -162,7 +170,8 @@ export default function Home() {
     extraAmount: number,
     option: "reduce_emi" | "reduce_tenure"
   ) => {
-    if (!currentUser) return;
+    const activeUser = impersonatedUser || currentUser;
+    if (!activeUser) return;
     const targetLoan = loans.find((l) => l.loanId === loanId);
     if (!targetLoan) return;
 
@@ -175,7 +184,7 @@ export default function Home() {
     try {
       if (extraAmount >= outstanding) {
         // Full Closure
-        await updateLoan(currentUser.uid, loanId, {
+        await updateLoan(activeUser.uid, loanId, {
           status: "Closed",
           monthsCompleted: targetLoan.totalTenureMonths,
           pendingMissed: false,
@@ -189,7 +198,7 @@ export default function Home() {
           const adjustedTotal =
             targetLoan.monthsCompleted * targetLoan.emiAmount + extraAmount + remainingMonths * newEmi;
 
-          await updateLoan(currentUser.uid, loanId, {
+          await updateLoan(activeUser.uid, loanId, {
             emiAmount: newEmi,
             totalAmount: adjustedTotal,
           });
@@ -200,7 +209,7 @@ export default function Home() {
           const adjustedTotal =
             targetLoan.monthsCompleted * targetLoan.emiAmount + extraAmount + newRemaining * targetLoan.emiAmount;
 
-          await updateLoan(currentUser.uid, loanId, {
+          await updateLoan(activeUser.uid, loanId, {
             totalTenureMonths: newTenure,
             totalAmount: adjustedTotal,
           });
@@ -222,11 +231,16 @@ export default function Home() {
       return;
     }
 
-    if (!currentUser) return;
+    const activeUser = impersonatedUser || currentUser;
+    if (!activeUser) return;
 
     try {
-      await updateProfile(currentUser.uid, { monthlyIncome: val });
-      setCurrentUser({ ...currentUser, monthlyIncome: val });
+      await updateProfile(activeUser.uid, { monthlyIncome: val });
+      if (impersonatedUser) {
+        setImpersonatedUser({ ...impersonatedUser, monthlyIncome: val });
+      } else if (currentUser) {
+        setCurrentUser({ ...currentUser, monthlyIncome: val });
+      }
       setIsIncomeOpen(false);
     } catch (err: any) {
       setIncomeError(err.message || "Failed to update income.");
@@ -257,12 +271,34 @@ export default function Home() {
     return <AuthPage onAuthSuccess={(user) => setCurrentUser(user)} />;
   }
 
+  // Admin Guard
+  if (isAdminMode && currentUser.role === "admin") {
+    return (
+      <AdminPanel
+        currentAdmin={currentUser}
+        onImpersonateUser={(user, userLoans) => {
+          setImpersonatedUser(user);
+          setLoans(userLoans);
+          setIsAdminMode(false);
+        }}
+        onClose={() => setIsAdminMode(false)}
+      />
+    );
+  }
+
   // Onboarding Guard
-  if (!currentUser.onboardingCompleted) {
+  const activeUser = impersonatedUser || currentUser;
+  if (!activeUser.onboardingCompleted) {
     return (
       <OnboardingWizard
-        user={currentUser}
-        onComplete={(updatedUser) => setCurrentUser(updatedUser)}
+        user={activeUser}
+        onComplete={(updatedUser) => {
+          if (impersonatedUser) {
+            setImpersonatedUser(updatedUser);
+          } else {
+            setCurrentUser(updatedUser);
+          }
+        }}
       />
     );
   }
@@ -289,12 +325,24 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-4">
+            {currentUser.role === "admin" && !impersonatedUser && (
+              <button
+                onClick={() => setIsAdminMode(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
+              >
+                <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                Admin Panel
+              </button>
+            )}
             <span className="text-xs font-semibold text-slate-500 hidden sm:inline">
               Welcome back, <strong className="text-slate-800">{currentUser.name}</strong>
             </span>
             <button
               onClick={() => {
-                signOutUser().then(() => setCurrentUser(null));
+                signOutUser().then(() => {
+                  setImpersonatedUser(null);
+                  setCurrentUser(null);
+                });
               }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 bg-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
             >
@@ -305,6 +353,25 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Impersonation Banner */}
+      {impersonatedUser && (
+        <div className="bg-emerald-600 text-white px-4 py-2.5 text-xs font-semibold flex items-center justify-between shadow-md z-20">
+          <span className="flex items-center gap-2">
+            <Shield className="w-4 h-4 fill-emerald-500 stroke-white animate-pulse" />
+            <span>Currently inspecting the portfolio of <strong className="underline font-bold">{impersonatedUser.name}</strong> ({impersonatedUser.email})</span>
+          </span>
+          <button
+            onClick={() => {
+              setImpersonatedUser(null);
+              setIsAdminMode(true);
+            }}
+            className="px-3 py-1 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all cursor-pointer font-bold border border-white/10"
+          >
+            Return to Admin Panel
+          </button>
+        </div>
+      )}
+
       {/* Dashboard Content Grid */}
       <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-8 flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
@@ -312,12 +379,12 @@ export default function Home() {
         <div className="lg:col-span-2 space-y-8">
           {/* Health widget */}
           <BreathingRoomWidget
-            uid={currentUser.uid}
-            monthlyIncome={currentUser.monthlyIncome}
+            uid={activeUser.uid}
+            monthlyIncome={activeUser.monthlyIncome}
             totalActiveEmis={totalActiveEmis}
-            fcmTokens={currentUser.fcmTokens}
+            fcmTokens={activeUser.fcmTokens}
             onUpdateIncome={() => {
-              setNewIncome(currentUser.monthlyIncome.toString());
+              setNewIncome(activeUser.monthlyIncome.toString());
               setIsIncomeOpen(true);
             }}
           />
@@ -360,7 +427,7 @@ export default function Home() {
                     loan={loan}
                     onToggleSkip={handleToggleSkip}
                     onOpenPaymentModal={(l) => setActivePaymentLoan(l)}
-                    onDeleteLoan={(loanId) => deleteLoan(currentUser.uid, loanId)}
+                    onDeleteLoan={(loanId) => deleteLoan(activeUser.uid, loanId)}
                   />
                 ))}
               </div>
@@ -387,7 +454,7 @@ export default function Home() {
                     loan={loan}
                     onToggleSkip={handleToggleSkip}
                     onOpenPaymentModal={(l) => setActivePaymentLoan(l)}
-                    onDeleteLoan={(loanId) => deleteLoan(currentUser.uid, loanId)}
+                    onDeleteLoan={(loanId) => deleteLoan(activeUser.uid, loanId)}
                   />
                 ))}
               </div>
@@ -451,7 +518,7 @@ export default function Home() {
       {isAddOpen && (
         <AddLoanModal
           onClose={() => setIsAddOpen(false)}
-          onAddLoan={(loanData) => addLoan(currentUser.uid, loanData).then(() => {})}
+          onAddLoan={(loanData) => addLoan(activeUser.uid, loanData).then(() => {})}
         />
       )}
 
