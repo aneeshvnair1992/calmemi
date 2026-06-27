@@ -32,8 +32,74 @@ import {
   Shield,
   CheckCircle,
   HelpCircle,
-  X
+  X,
+  Users,
+  TrendingDown,
+  BookOpen
 } from "lucide-react";
+
+interface DashboardLoan extends Loan {
+  owner?: "Me" | "Sarah" | "Shared";
+}
+
+// Feature A: Repayment Snowball math simulator
+const simulateSnowball = (activeLoans: DashboardLoan[], extraPayment: number) => {
+  if (activeLoans.length === 0) return { standardMonths: 0, savedMonths: 0, snowballMonths: 0 };
+
+  let standardMonths = 0;
+  const simLoans = activeLoans.map((l) => {
+    const monthsLeft = Math.max(0, l.totalTenureMonths - l.monthsCompleted);
+    if (monthsLeft > standardMonths) standardMonths = monthsLeft;
+
+    const balance = Math.max(0, l.totalAmount - (l.monthsCompleted * l.emiAmount));
+    return {
+      id: l.loanId,
+      balance,
+      emi: l.emiAmount,
+    };
+  });
+
+  if (extraPayment <= 0) {
+    return { standardMonths, savedMonths: 0, snowballMonths: standardMonths };
+  }
+
+  const totalBaseEmi = simLoans.reduce((sum, l) => sum + l.emi, 0);
+  const totalBudget = totalBaseEmi + extraPayment;
+
+  let snowballMonths = 0;
+  const maxSimMonths = 600;
+
+  while (snowballMonths < maxSimMonths) {
+    const active = simLoans.filter((l) => l.balance > 0);
+    if (active.length === 0) break;
+
+    active.sort((a, b) => a.balance - b.balance);
+
+    let standardPaidThisMonth = 0;
+    active.forEach((l) => {
+      const payment = Math.min(l.emi, l.balance);
+      l.balance -= payment;
+      standardPaidThisMonth += payment;
+    });
+
+    let snowballPool = totalBudget - standardPaidThisMonth;
+    
+    for (let i = 0; i < active.length; i++) {
+      if (snowballPool <= 0) break;
+      const l = active[i];
+      if (l.balance > 0) {
+        const extraPaymentApplied = Math.min(snowballPool, l.balance);
+        l.balance -= extraPaymentApplied;
+        snowballPool -= extraPaymentApplied;
+      }
+    }
+
+    snowballMonths++;
+  }
+
+  const savedMonths = Math.max(0, standardMonths - snowballMonths);
+  return { standardMonths, savedMonths, snowballMonths };
+};
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -43,6 +109,10 @@ export default function Home() {
   // Admin module states
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [impersonatedUser, setImpersonatedUser] = useState<UserProfile | null>(null);
+
+  // Advanced features states
+  const [isFamilyView, setIsFamilyView] = useState(false);
+  const [snowballExtra, setSnowballExtra] = useState(0);
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -83,7 +153,7 @@ export default function Home() {
     today.setHours(0, 0, 0, 0);
 
     for (const loan of loansList) {
-      if (loan.status !== "Active") continue;
+      if (loan.status !== "Active" && loan.status !== "Paused") continue;
 
       let nextDate = new Date(loan.nextEmiDate);
       nextDate.setHours(0, 0, 0, 0);
@@ -98,7 +168,11 @@ export default function Home() {
 
         // In case multiple cycles passed (e.g. user offline for 2 months)
         while (today >= nextDate) {
-          if (currentPendingMissed) {
+          if (updatedStatus === "Paused") {
+            // Smart Pause: Halt increment, append tenure, reset to Active
+            currentTotalTenure += 1;
+            updatedStatus = "Active";
+          } else if (currentPendingMissed) {
             // Exception Handler: Halt increment, append tenure
             currentTotalTenure += 1;
             currentPendingMissed = false; // Reset for next cycle
@@ -162,6 +236,22 @@ export default function Home() {
       });
     } catch (e) {
       console.error("Error toggling skip state:", e);
+    }
+  };
+
+  const handleTogglePause = async (loanId: string) => {
+    const activeUser = impersonatedUser || currentUser;
+    if (!activeUser) return;
+    const targetLoan = loans.find((l) => l.loanId === loanId);
+    if (!targetLoan) return;
+
+    const newStatus = targetLoan.status === "Paused" ? "Active" : "Paused";
+    try {
+      await updateLoan(activeUser.uid, loanId, {
+        status: newStatus,
+      });
+    } catch (e) {
+      console.error("Error toggling pause state:", e);
     }
   };
 
@@ -247,10 +337,61 @@ export default function Home() {
     }
   };
 
+  const activeUser = impersonatedUser || currentUser;
+
+  // Family View data injection
+  const myDashboardLoans: DashboardLoan[] = loans.map((l) => ({ ...l, owner: "Me" }));
+  const familyDashboardLoans: DashboardLoan[] = [
+    {
+      loanId: "family-loan-1",
+      nickname: "Sarah's Student Loan",
+      provider: "Sallie Mae",
+      loanType: "Education Loan",
+      totalAmount: 35000,
+      emiAmount: 350,
+      totalTenureMonths: 120,
+      monthsCompleted: 60,
+      emiDayOfMonth: 15,
+      nextEmiDate: "2026-07-15",
+      status: "Active",
+      pendingMissed: false,
+      updatedAt: new Date().toISOString(),
+      owner: "Sarah",
+    },
+    {
+      loanId: "family-loan-2",
+      nickname: "Shared Home Renovation",
+      provider: "SBI",
+      loanType: "Personal Loan",
+      totalAmount: 15000,
+      emiAmount: 250,
+      totalTenureMonths: 60,
+      monthsCompleted: 24,
+      emiDayOfMonth: 22,
+      nextEmiDate: "2026-07-22",
+      status: "Active",
+      pendingMissed: false,
+      updatedAt: new Date().toISOString(),
+      owner: "Shared",
+    }
+  ];
+
+  const displayLoans = isFamilyView ? [...myDashboardLoans, ...familyDashboardLoans] : myDashboardLoans;
+  const displayIncome = isFamilyView ? ((activeUser?.monthlyIncome || 0) + 4500) : (activeUser?.monthlyIncome || 0);
+
   // Calculations for dashboard
-  const activeLoansList = loans.filter((l) => l.status === "Active");
-  const closedLoansList = loans.filter((l) => l.status === "Closed");
+  const commitmentsLoansList = displayLoans.filter((l) => l.status === "Active" || l.status === "Paused");
+  const activeLoansList = displayLoans.filter((l) => l.status === "Active");
+  const closedLoansList = displayLoans.filter((l) => l.status === "Closed");
   const totalActiveEmis = activeLoansList.reduce((acc, curr) => acc + curr.emiAmount, 0);
+
+  // Safe Zone calculations
+  const activeDueDays = activeLoansList.map((l) => l.emiDayOfMonth);
+  const latestDueDay = activeDueDays.length > 0 ? Math.max(...activeDueDays) : 0;
+  const activeEmiSum = activeLoansList.reduce((sum, l) => sum + l.emiAmount, 0);
+
+  // Snowball Simulator math
+  const snowballStats = simulateSnowball(activeLoansList, snowballExtra);
 
   // Loading Screen
   if (authLoading) {
@@ -287,7 +428,7 @@ export default function Home() {
   }
 
   // Onboarding Guard
-  const activeUser = impersonatedUser || currentUser;
+  if (!activeUser) return null;
   if (!activeUser.onboardingCompleted) {
     return (
       <OnboardingWizard
@@ -373,14 +514,98 @@ export default function Home() {
       )}
 
       {/* Dashboard Content Grid */}
-      <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-8 flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-8 flex-1">
+        
+        {/* Feature B: Buffer Day Safe Zone Timeline */}
+        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm mb-8 relative overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100/50 pb-4 mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                <ShieldCheck className="w-5.5 h-5.5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-800 tracking-tight">Buffer Day Safe Zone</h3>
+                <p className="text-[10px] text-slate-400 font-medium">Cognitive cushion for current month EMIs</p>
+              </div>
+            </div>
+            {latestDueDay > 0 ? (
+              <div className="px-4 py-2 bg-emerald-50/50 border border-emerald-100 text-emerald-800 text-xs font-semibold rounded-2xl flex items-center gap-2">
+                <Shield className="w-4 h-4 text-emerald-600 animate-pulse fill-emerald-100" />
+                <span>
+                  Keep <strong>{formatCurrency(activeEmiSum)}</strong> in account until the <strong>{latestDueDay}th</strong>. After this, your budget is in the clear.
+                </span>
+              </div>
+            ) : (
+              <div className="px-4 py-2 bg-slate-50 border border-slate-100 text-slate-500 text-xs font-semibold rounded-2xl">
+                No active obligations this month.
+              </div>
+            )}
+          </div>
+
+          {/* Timeline track */}
+          <div className="relative pt-6 pb-2 px-2">
+            <div className="h-2 w-full bg-slate-100 rounded-full relative">
+              {latestDueDay > 0 && (
+                <div 
+                  className="h-full bg-rose-100/70 border-r border-rose-300 transition-all duration-500 rounded-l-full absolute left-0"
+                  style={{ width: `${(latestDueDay / 31) * 100}%` }}
+                />
+              )}
+              {latestDueDay > 0 && (
+                <div 
+                  className="h-full bg-emerald-50/50 absolute top-0 rounded-r-full"
+                  style={{ left: `${(latestDueDay / 31) * 100}%`, width: `${((31 - latestDueDay) / 31) * 100}%` }}
+                />
+              )}
+            </div>
+
+            {/* Markers */}
+            {commitmentsLoansList.map((loan) => {
+              const position = (loan.emiDayOfMonth / 31) * 100;
+              return (
+                <div
+                  key={loan.loanId}
+                  className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer"
+                  style={{ left: `${position}%` }}
+                >
+                  <div className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 shadow-sm ${
+                    loan.status === "Paused"
+                      ? "bg-amber-400 border-white ring-2 ring-amber-100"
+                      : loan.pendingMissed
+                      ? "bg-rose-400 border-white ring-2 ring-rose-100"
+                      : "bg-emerald-500 border-white ring-2 ring-emerald-100"
+                  }`} />
+                  <div className="absolute bottom-6 scale-0 group-hover:scale-100 bg-slate-900 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl shadow-lg whitespace-nowrap transition-all z-20 flex flex-col items-center border border-slate-800">
+                    <span className="font-extrabold">{loan.nickname}</span>
+                    <span className="text-[9px] text-slate-400 font-medium">
+                      {formatCurrency(loan.emiAmount)} (Due {loan.emiDayOfMonth}th)
+                    </span>
+                    {loan.owner && (
+                      <span className="text-[8px] uppercase tracking-wider bg-slate-800 text-slate-300 px-1 py-0.5 rounded mt-1 border border-slate-700">
+                        {loan.owner}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-400 mt-5">{loan.emiDayOfMonth}</span>
+                </div>
+              );
+            })}
+
+            <div className="flex justify-between text-[9px] text-slate-350 font-bold mt-2">
+              <span>Day 1</span>
+              <span>Day 31</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Left Column: Metrics & Loan Commitments */}
         <div className="lg:col-span-2 space-y-8">
           {/* Health widget */}
           <BreathingRoomWidget
             uid={activeUser.uid}
-            monthlyIncome={activeUser.monthlyIncome}
+            monthlyIncome={displayIncome}
             totalActiveEmis={totalActiveEmis}
             fcmTokens={activeUser.fcmTokens}
             onUpdateIncome={() => {
@@ -391,25 +616,40 @@ export default function Home() {
 
           {/* Active Loans Section */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-extrabold text-slate-800 tracking-tight">
-                  Your Active Commitments
+                  {isFamilyView ? "Family Shared Commitments" : "Your Active Commitments"}
                 </h2>
                 <p className="text-xs text-slate-400">
-                  Manage your active installment periods.
+                  {isFamilyView ? "Combined schedule for Me, Sarah, and Shared tracks." : "Manage your active installment periods."}
                 </p>
               </div>
-              <button
-                onClick={() => setIsAddOpen(true)}
-                className="inline-flex items-center gap-1 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-[0.98]"
-              >
-                <Plus className="w-4 h-4" />
-                Add Loan
-              </button>
+              <div className="flex items-center gap-3">
+                {/* Family View Toggle */}
+                <button
+                  onClick={() => setIsFamilyView(!isFamilyView)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ${
+                    isFamilyView
+                      ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100/50"
+                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  {isFamilyView ? "Individual View" : "Family View"}
+                </button>
+
+                <button
+                  onClick={() => setIsAddOpen(true)}
+                  className="inline-flex items-center gap-1 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-[0.98]"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Loan
+                </button>
+              </div>
             </div>
 
-            {activeLoansList.length === 0 ? (
+            {commitmentsLoansList.length === 0 ? (
               <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4 border border-emerald-100">
                   <Smile className="w-6 h-6" />
@@ -421,13 +661,20 @@ export default function Home() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {activeLoansList.map((loan) => (
+                {commitmentsLoansList.map((loan) => (
                   <LoanCard
                     key={loan.loanId}
                     loan={loan}
                     onToggleSkip={handleToggleSkip}
+                    onTogglePause={handleTogglePause}
                     onOpenPaymentModal={(l) => setActivePaymentLoan(l)}
-                    onDeleteLoan={(loanId) => deleteLoan(activeUser.uid, loanId)}
+                    onDeleteLoan={(loanId) => {
+                      if (loan.loanId.startsWith("family-loan")) {
+                        alert("Family view simulation loans cannot be deleted.");
+                      } else {
+                        deleteLoan(activeUser.uid, loan.loanId);
+                      }
+                    }}
                   />
                 ))}
               </div>
@@ -453,8 +700,15 @@ export default function Home() {
                     key={loan.loanId}
                     loan={loan}
                     onToggleSkip={handleToggleSkip}
+                    onTogglePause={handleTogglePause}
                     onOpenPaymentModal={(l) => setActivePaymentLoan(l)}
-                    onDeleteLoan={(loanId) => deleteLoan(activeUser.uid, loanId)}
+                    onDeleteLoan={(loanId) => {
+                      if (loan.loanId.startsWith("family-loan")) {
+                        alert("Family view simulation loans cannot be deleted.");
+                      } else {
+                        deleteLoan(activeUser.uid, loan.loanId);
+                      }
+                    }}
                   />
                 ))}
               </div>
@@ -464,8 +718,67 @@ export default function Home() {
 
         {/* Right Column: Timeline & Advice */}
         <div className="space-y-6">
+          
+          {/* Feature A: Snowball Debt-Free Simulator */}
+          <div className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-emerald-50/50 blur-2xl pointer-events-none" />
+            
+            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <TrendingDown className="w-4 h-4 text-emerald-500 fill-emerald-50" />
+              Snowball Debt Simulator
+            </h4>
+            <h3 className="text-base font-extrabold text-slate-800 tracking-tight">Accelerate Your Freedom</h3>
+            <p className="text-[11px] text-slate-450 mt-1 mb-5 leading-normal">
+              Adding a tiny extra lump sum to your debt repayment speeds up payoff exponentially by rolling over cleared EMIs.
+            </p>
+
+            {/* Slider */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-slate-500">Fictional Monthly Extra:</span>
+                <span className="font-bold text-emerald-600 text-xs bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                  +{formatCurrency(snowballExtra)}/mo
+                </span>
+              </div>
+              
+              <input
+                type="range"
+                min="0"
+                max="10000"
+                step="500"
+                value={snowballExtra}
+                onChange={(e) => setSnowballExtra(Number(e.target.value))}
+                className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-500 focus:outline-none"
+              />
+              
+              <div className="flex justify-between text-[10px] font-bold text-slate-300">
+                <span>$0</span>
+                <span>$5,000</span>
+                <span>$10,000</span>
+              </div>
+            </div>
+
+            {/* Results */}
+            <div className="mt-5 p-4 bg-emerald-50/30 border border-emerald-100/50 rounded-2xl text-center">
+              {snowballExtra > 0 && snowballStats.savedMonths > 0 ? (
+                <div className="space-y-1 animate-in fade-in zoom-in-95 duration-200">
+                  <p className="text-xs font-bold text-emerald-800 leading-tight">
+                    One-Click Hope: Save {snowballStats.savedMonths} Months!
+                  </p>
+                  <p className="text-[10px] text-emerald-700 leading-normal font-medium">
+                    By adding <strong>+{formatCurrency(snowballExtra)}/mo</strong>, you will become debt-free in <strong>{snowballStats.snowballMonths} months</strong> instead of {snowballStats.standardMonths} months!
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[10px] text-slate-455 text-slate-400 leading-normal font-medium">
+                  Move the slider above to see how quickly you can become completely EMI-free!
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* Upcoming Schedule Timeline */}
-          <Timeline loans={loans} />
+          <Timeline loans={displayLoans} />
 
           {/* stress-relief high empathy advice card */}
           <div className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm relative overflow-hidden">
@@ -500,7 +813,8 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
+    </main>
 
       {/* FOOTER */}
       <footer className="max-w-6xl w-full mx-auto px-4 mt-12 text-center text-[10px] text-slate-400 flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 pt-6">

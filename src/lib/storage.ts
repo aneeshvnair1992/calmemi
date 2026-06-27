@@ -48,7 +48,7 @@ export interface Loan {
   monthsCompleted: number;
   emiDayOfMonth: number;
   nextEmiDate: string; // YYYY-MM-DD
-  status: "Active" | "Closed" | "Overdue";
+  status: "Active" | "Closed" | "Overdue" | "Paused";
   pendingMissed: boolean; // Flag to indicate if the current month's EMI is flagged as Missed/Pending
   updatedAt: any;
 }
