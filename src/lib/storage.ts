@@ -113,9 +113,21 @@ function triggerMockAuth(user: UserProfile | null) {
  * Register auth listener
  */
 export function subscribeAuth(callback: (user: UserProfile | null) => void): () => void {
+  mockAuthListeners.push(callback);
+  
+  let unsubscribeFirebase = () => {};
+  
   if (isFirebaseConfigured && auth && db) {
-    return onAuthStateChanged(auth, async (firebaseUser) => {
+    unsubscribeFirebase = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // If a Firebase user is logged in, we clear any mock session
+        if (currentMockUser) {
+          currentMockUser = null;
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("emi_manager_current_user");
+          }
+        }
+        
         // Fetch user profile from Firestore
         const userRef = doc(db, "users", firebaseUser.uid);
         const userSnap = await getDoc(userRef);
@@ -134,17 +146,23 @@ export function subscribeAuth(callback: (user: UserProfile | null) => void): () 
           });
         }
       } else {
-        callback(null);
+        // If no Firebase user is logged in, check if there's an active mock session
+        if (currentMockUser) {
+          callback(currentMockUser);
+        } else {
+          callback(null);
+        }
       }
     });
   } else {
-    mockAuthListeners.push(callback);
-    // Initial call
+    // Initial call for mock session
     setTimeout(() => callback(currentMockUser), 50);
-    return () => {
-      mockAuthListeners = mockAuthListeners.filter((cb) => cb !== callback);
-    };
   }
+  
+  return () => {
+    mockAuthListeners = mockAuthListeners.filter((cb) => cb !== callback);
+    unsubscribeFirebase();
+  };
 }
 
 /**
@@ -208,7 +226,9 @@ export async function signUpUser(email: string, password: string, name: string):
  * Sign In
  */
 export async function signInUser(email: string, password: string): Promise<UserProfile> {
-  if (isFirebaseConfigured && auth && db) {
+  const isMockEmail = email.toLowerCase() === "demo@example.com" || email.toLowerCase() === "admin@calmemi.com";
+  console.log("[CALMEMI STORAGE] signInUser request:", { email, isMockEmail, isFirebaseConfigured: !!isFirebaseConfigured });
+  if (isFirebaseConfigured && auth && db && !isMockEmail) {
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password);
       const uid = credential.user.uid;
@@ -426,10 +446,9 @@ export async function signInWithGoogle(): Promise<UserProfile> {
  * Sign Out
  */
 export async function signOutUser(): Promise<void> {
+  triggerMockAuth(null);
   if (isFirebaseConfigured && auth) {
     await firebaseSignOut(auth);
-  } else {
-    triggerMockAuth(null);
   }
 }
 
@@ -440,7 +459,7 @@ export async function updateProfile(
   uid: string,
   data: Partial<UserProfile>
 ): Promise<void> {
-  if (isFirebaseConfigured && db) {
+  if (isFirebaseConfigured && db && !uid.startsWith("mock-")) {
     const userRef = doc(db, "users", uid);
     await updateDoc(userRef, data as any);
   } else {
@@ -459,7 +478,7 @@ export async function updateProfile(
  * Add FCM Token for Push Notifications
  */
 export async function addFcmToken(uid: string, token: string): Promise<void> {
-  if (isFirebaseConfigured && db) {
+  if (isFirebaseConfigured && db && !uid.startsWith("mock-")) {
     const userRef = doc(db, "users", uid);
     await updateDoc(userRef, {
       fcmTokens: arrayUnion(token),
@@ -491,7 +510,7 @@ export function subscribeLoans(
   uid: string,
   callback: (loans: Loan[]) => void
 ): () => void {
-  if (isFirebaseConfigured && db) {
+  if (isFirebaseConfigured && db && !uid.startsWith("mock-")) {
     const loansRef = collection(db, "users", uid, "loans");
     const q = query(loansRef, orderBy("emiDayOfMonth", "asc"));
     return onSnapshot(q, (snap) => {
@@ -521,7 +540,7 @@ export function subscribeLoans(
  * Add Loan
  */
 export async function addLoan(uid: string, loan: Omit<Loan, "loanId" | "updatedAt">): Promise<string> {
-  if (isFirebaseConfigured && db) {
+  if (isFirebaseConfigured && db && !uid.startsWith("mock-")) {
     const loansRef = collection(db, "users", uid, "loans");
     // Generate a temporary new ref to get ID
     const newDocRef = doc(loansRef);
@@ -559,7 +578,7 @@ export async function updateLoan(
   loanId: string,
   data: Partial<Loan>
 ): Promise<void> {
-  if (isFirebaseConfigured && db) {
+  if (isFirebaseConfigured && db && !uid.startsWith("mock-")) {
     const loanRef = doc(db, "users", uid, "loans", loanId);
     await updateDoc(loanRef, {
       ...data,
@@ -588,7 +607,7 @@ export async function updateLoan(
  * Delete Loan
  */
 export async function deleteLoan(uid: string, loanId: string): Promise<void> {
-  if (isFirebaseConfigured && db) {
+  if (isFirebaseConfigured && db && !uid.startsWith("mock-")) {
     const loanRef = doc(db, "users", uid, "loans", loanId);
     await deleteDoc(loanRef);
   } else {
@@ -633,7 +652,7 @@ export async function getAllUsers(): Promise<UserProfile[]> {
  * Update user role/permissions
  */
 export async function updateUserRole(uid: string, role: "admin" | "user"): Promise<void> {
-  if (isFirebaseConfigured && db) {
+  if (isFirebaseConfigured && db && !uid.startsWith("mock-")) {
     const userRef = doc(db, "users", uid);
     await updateDoc(userRef, { role });
   } else {
@@ -652,7 +671,7 @@ export async function updateUserRole(uid: string, role: "admin" | "user"): Promi
  * Delete user account and their associated loans
  */
 export async function deleteUserAccount(uid: string): Promise<void> {
-  if (isFirebaseConfigured && db) {
+  if (isFirebaseConfigured && db && !uid.startsWith("mock-")) {
     // Delete user document
     await deleteDoc(doc(db, "users", uid));
     
@@ -676,7 +695,7 @@ export async function deleteUserAccount(uid: string): Promise<void> {
  * Fetch loans list for any specific user (for Admin inspection dashboard)
  */
 export async function getUserLoans(uid: string): Promise<Loan[]> {
-  if (isFirebaseConfigured && db) {
+  if (isFirebaseConfigured && db && !uid.startsWith("mock-")) {
     const loansRef = collection(db, "users", uid, "loans");
     const snap = await getDocs(loansRef);
     const loansList: Loan[] = [];
