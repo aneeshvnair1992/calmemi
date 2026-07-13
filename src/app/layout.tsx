@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.calmemi.com"),
+  metadataBase: new URL("https://calmemi.web.app"),
   title: {
     default: "calm.emi — Stress-Free Family Debt & Budget Tracker",
     template: "%s | calm.emi",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     "calmemi",
     "debt-free target"
   ],
-  authors: [{ name: "calm.emi Team", url: "https://www.calmemi.com" }],
+  authors: [{ name: "calm.emi Team", url: "https://calmemi.web.app" }],
   creator: "calm.emi",
   publisher: "calm.emi",
   robots: {
@@ -45,12 +45,12 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: "https://www.calmemi.com",
+    canonical: "https://calmemi.web.app",
   },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://www.calmemi.com",
+    url: "https://calmemi.web.app",
     title: "calm.emi — Clarity Over Anxiety | Family EMI & Debt Tracker",
     description: "Track family EMIs, calculate your monthly financial breathing room, simulate debt payoffs, and organize installments with zero finance jargon.",
     siteName: "calm.emi",
