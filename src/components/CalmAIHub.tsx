@@ -29,6 +29,7 @@ import {
 interface CalmAIHubProps {
   loans: Loan[];
   profile: UserProfile;
+  forcedTab?: TabType;
 }
 
 type TabType =
@@ -56,8 +57,10 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-export default function CalmAIHub({ loans, profile }: CalmAIHubProps) {
-  const [activeTab, setActiveTab] = useState<TabType>("advisor");
+export default function CalmAIHub({ loans, profile, forcedTab }: CalmAIHubProps) {
+  const [activeTabState, setActiveTabState] = useState<TabType>("advisor");
+  const activeTab = forcedTab || activeTabState;
+  const setActiveTab = setActiveTabState;
 
   const activeLoans = loans.filter((l) => l.status === "Active" || l.status === "Paused");
   const totalActiveEmis = activeLoans.reduce((sum, l) => sum + l.emiAmount, 0);
@@ -465,109 +468,111 @@ To explore further, you can ask me:
     <div className="bg-slate-50 flex flex-col md:flex-row gap-8 mt-6 w-full animate-in fade-in duration-300">
       
       {/* LEFT NAVIGATION COLUMN (Tabs) */}
-      <div className="w-full md:w-64 shrink-0 flex flex-col gap-2">
-        <div className="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm space-y-1.5">
-          <div className="px-3 py-2 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
-            AI Advisors & Planners
+      {!forcedTab && (
+        <div className="w-full md:w-64 shrink-0 flex flex-col gap-2">
+          <div className="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm space-y-1.5">
+            <div className="px-3 py-2 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
+              AI Advisors & Planners
+            </div>
+
+            <button
+              onClick={() => setActiveTab("advisor")}
+              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
+                activeTab === "advisor"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-650 hover:bg-slate-50 text-slate-600"
+              }`}
+            >
+              <Brain className="w-4.5 h-4.5 text-emerald-400 shrink-0" />
+              AI Financial Advisor
+            </button>
+
+            <button
+              onClick={() => setActiveTab("goals")}
+              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
+                activeTab === "goals"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-650 hover:bg-slate-50 text-slate-600"
+              }`}
+            >
+              <Target className="w-4.5 h-4.5 text-indigo-400 shrink-0" />
+              Goal Tracker
+            </button>
+
+            <button
+              onClick={() => setActiveTab("sip")}
+              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
+                activeTab === "sip"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-650 hover:bg-slate-50 text-slate-600"
+              }`}
+            >
+              <FileSpreadsheet className="w-4.5 h-4.5 text-blue-400 shrink-0" />
+              SIP Wealth Planner
+            </button>
+
+            <button
+              onClick={() => setActiveTab("optimize")}
+              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
+                activeTab === "optimize"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-650 hover:bg-slate-50 text-slate-600"
+              }`}
+            >
+              <TrendingDown className="w-4.5 h-4.5 text-amber-400 shrink-0" />
+              Loan Optimization
+            </button>
+
+            <button
+              onClick={() => setActiveTab("cibil")}
+              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
+                activeTab === "cibil"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-650 hover:bg-slate-50 text-slate-600"
+              }`}
+            >
+              <Gauge className="w-4.5 h-4.5 text-purple-400 shrink-0" />
+              CIBIL Score Booster
+            </button>
+
+            <button
+              onClick={() => setActiveTab("emergency")}
+              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
+                activeTab === "emergency"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-650 hover:bg-slate-50 text-slate-600"
+              }`}
+            >
+              <ShieldAlert className="w-4.5 h-4.5 text-teal-400 shrink-0" />
+              Emergency Planner
+            </button>
+
+            <button
+              onClick={() => setActiveTab("layoff")}
+              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
+                activeTab === "layoff"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-650 hover:bg-slate-50 text-slate-600"
+              }`}
+            >
+              <Flame className="w-4.5 h-4.5 text-rose-400 shrink-0" />
+              Layoff Survival
+            </button>
+
+            <button
+              onClick={() => setActiveTab("salary")}
+              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
+                activeTab === "salary"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-650 hover:bg-slate-50 text-slate-600"
+              }`}
+            >
+              <UserPlus className="w-4.5 h-4.5 text-pink-400 shrink-0" />
+              Salary Hike Simulator
+            </button>
           </div>
-
-          <button
-            onClick={() => setActiveTab("advisor")}
-            className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-              activeTab === "advisor"
-                ? "bg-slate-900 text-white shadow-sm"
-                : "text-slate-650 hover:bg-slate-50 text-slate-600"
-            }`}
-          >
-            <Brain className="w-4.5 h-4.5 text-emerald-400 shrink-0" />
-            AI Financial Advisor
-          </button>
-
-          <button
-            onClick={() => setActiveTab("goals")}
-            className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-              activeTab === "goals"
-                ? "bg-slate-900 text-white shadow-sm"
-                : "text-slate-650 hover:bg-slate-50 text-slate-600"
-            }`}
-          >
-            <Target className="w-4.5 h-4.5 text-indigo-400 shrink-0" />
-            Goal Tracker
-          </button>
-
-          <button
-            onClick={() => setActiveTab("sip")}
-            className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-              activeTab === "sip"
-                ? "bg-slate-900 text-white shadow-sm"
-                : "text-slate-650 hover:bg-slate-50 text-slate-600"
-            }`}
-          >
-            <FileSpreadsheet className="w-4.5 h-4.5 text-blue-400 shrink-0" />
-            SIP Wealth Planner
-          </button>
-
-          <button
-            onClick={() => setActiveTab("optimize")}
-            className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-              activeTab === "optimize"
-                ? "bg-slate-900 text-white shadow-sm"
-                : "text-slate-650 hover:bg-slate-50 text-slate-600"
-            }`}
-          >
-            <TrendingDown className="w-4.5 h-4.5 text-amber-400 shrink-0" />
-            Loan Optimization
-          </button>
-
-          <button
-            onClick={() => setActiveTab("cibil")}
-            className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-              activeTab === "cibil"
-                ? "bg-slate-900 text-white shadow-sm"
-                : "text-slate-650 hover:bg-slate-50 text-slate-600"
-            }`}
-          >
-            <Gauge className="w-4.5 h-4.5 text-purple-400 shrink-0" />
-            CIBIL Score Booster
-          </button>
-
-          <button
-            onClick={() => setActiveTab("emergency")}
-            className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-              activeTab === "emergency"
-                ? "bg-slate-900 text-white shadow-sm"
-                : "text-slate-650 hover:bg-slate-50 text-slate-600"
-            }`}
-          >
-            <ShieldAlert className="w-4.5 h-4.5 text-teal-400 shrink-0" />
-            Emergency Planner
-          </button>
-
-          <button
-            onClick={() => setActiveTab("layoff")}
-            className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-              activeTab === "layoff"
-                ? "bg-slate-900 text-white shadow-sm"
-                : "text-slate-650 hover:bg-slate-50 text-slate-600"
-            }`}
-          >
-            <Flame className="w-4.5 h-4.5 text-rose-400 shrink-0" />
-            Layoff Survival
-          </button>
-
-          <button
-            onClick={() => setActiveTab("salary")}
-            className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-              activeTab === "salary"
-                ? "bg-slate-900 text-white shadow-sm"
-                : "text-slate-650 hover:bg-slate-50 text-slate-600"
-            }`}
-          >
-            <UserPlus className="w-4.5 h-4.5 text-pink-400 shrink-0" />
-            Salary Hike Simulator
-          </button>
         </div>
-      </div>
+      )}
 
       {/* RIGHT MAIN WORKSPACE */}
       <div className="flex-1 min-w-0">

@@ -44,7 +44,13 @@ import {
   Download,
   ChevronDown,
   FileSpreadsheet,
-  ArrowRight
+  ArrowRight,
+  Brain,
+  Target,
+  Gauge,
+  ShieldAlert,
+  Flame,
+  UserPlus
 } from "lucide-react";
 
 interface DashboardLoan extends Loan {
@@ -110,6 +116,18 @@ const simulateSnowball = (activeLoans: DashboardLoan[], extraPayment: number) =>
   return { standardMonths, savedMonths, snowballMonths };
 };
 
+const MENU_ITEMS = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "advisor", label: "AI financial advisor(beta)", icon: Brain },
+  { id: "goals", label: "Goal tracking", icon: Target },
+  { id: "sip", label: "SIP planner", icon: FileSpreadsheet },
+  { id: "optimize", label: "Loan optimization", icon: TrendingDown },
+  { id: "cibil", label: "CIBIL improvement", icon: Gauge },
+  { id: "emergency", label: "Emergency fund planner", icon: ShieldAlert },
+  { id: "layoff", label: "Layoff survival planner", icon: Flame },
+  { id: "salary", label: "Salary hike simulator", icon: UserPlus },
+];
+
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -122,7 +140,7 @@ export default function Home() {
   // Advanced features states
   const [isFamilyView, setIsFamilyView] = useState(false);
   const [snowballExtra, setSnowballExtra] = useState(0);
-  const [activeAppTab, setActiveAppTab] = useState<"dashboard" | "ai_hub">("dashboard");
+  const [activeAppMenu, setActiveAppMenu] = useState<string>("dashboard");
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Modal states
@@ -533,224 +551,70 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans select-none pb-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#f8fafc] flex font-sans select-none relative overflow-hidden">
+      
       {/* Visual background accents */}
-      <div className="absolute top-0 left-1/4 w-[700px] h-[500px] rounded-full bg-emerald-50/30 blur-3xl -z-10 pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-rose-50/20 blur-3xl -z-10 pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-[700px] h-[500px] rounded-full bg-emerald-500/[0.02] blur-3xl -z-10 pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-indigo-500/[0.015] blur-3xl -z-10 pointer-events-none" />
 
-      {/* Main Header */}
-      <header className="sticky top-0 bg-slate-50/80 backdrop-blur-md border-b border-slate-100 z-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-slate-900 to-slate-800 text-white flex items-center justify-center shadow-sm">
-              <Heart className="w-4 h-4 fill-emerald-400 stroke-emerald-500" />
-            </div>
-            <div>
-              <h1 className="text-sm font-extrabold text-slate-900 tracking-tight leading-none">
-                emi.calm
-              </h1>
-              <p className="text-[10px] text-slate-400 font-medium">Clarity over Anxiety</p>
-            </div>
+      {/* LEFT SIDEBAR NAVIGATION */}
+      <aside className="w-64 bg-[#0f172a] text-slate-400 flex flex-col shrink-0 border-r border-slate-800 z-20">
+        {/* Brand Header */}
+        <div className="p-6 border-b border-slate-800 flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-emerald-600 text-slate-950 flex items-center justify-center shadow-sm">
+            <Heart className="w-4.5 h-4.5 fill-slate-950 stroke-slate-950" />
           </div>
+          <div>
+            <h1 className="text-sm font-black text-white tracking-tight leading-none">calm.emi</h1>
+            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">SaaS Portfolio Portal</p>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-4">
-            {currentUser.role === "admin" && !impersonatedUser && (
+        {/* Navigation Items */}
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto scrollbar-thin">
+          {MENU_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeAppMenu === item.id;
+            return (
               <button
-                onClick={() => setIsAdminMode(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
+                key={item.id}
+                onClick={() => setActiveAppMenu(item.id)}
+                className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer ${
+                  isActive
+                    ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/10"
+                    : "text-slate-400 hover:bg-slate-800/60 hover:text-white"
+                }`}
               >
-                <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                Admin Panel
+                <Icon className={`w-4.5 h-4.5 shrink-0 ${isActive ? "text-slate-950" : "text-slate-400"}`} />
+                {item.label}
               </button>
-            )}
-            <span className="text-xs font-semibold text-slate-500 hidden md:inline">
-              Welcome back, <strong className="text-slate-800">{currentUser.name}</strong>
-            </span>
-            <button
-              onClick={openProfileSettings}
-              className="p-2 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-xl transition-all cursor-pointer shadow-sm"
-              title="Profile & Currency Settings"
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => {
-                signOutUser().then(() => {
-                  setImpersonatedUser(null);
-                  setCurrentUser(null);
-                });
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 bg-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              Sign Out
-            </button>
-          </div>
+            );
+          })}
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t border-slate-800 text-[10px] text-slate-500 text-center font-bold uppercase tracking-wider">
+          calm.emi SaaS v1.0
         </div>
-      </header>
+      </aside>
 
-      {/* Impersonation Banner */}
-      {impersonatedUser && (
-        <div className="bg-emerald-600 text-white px-4 py-2.5 text-xs font-semibold flex items-center justify-between shadow-md z-20">
-          <span className="flex items-center gap-2">
-            <Shield className="w-4 h-4 fill-emerald-500 stroke-white animate-pulse" />
-            <span>Currently inspecting the portfolio of <strong className="underline font-bold">{impersonatedUser.name}</strong> ({impersonatedUser.email})</span>
-          </span>
-          <button
-            onClick={() => {
-              setImpersonatedUser(null);
-              setIsAdminMode(true);
-            }}
-            className="px-3 py-1 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all cursor-pointer font-bold border border-white/10"
-          >
-            Return to Admin Panel
-          </button>
-        </div>
-      )}
-
-      {/* Tab Navigation */}
-      <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-        <div className="border-b border-slate-200 flex gap-6">
-          <button
-            onClick={() => setActiveAppTab("dashboard")}
-            className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all border-b-2 flex items-center gap-1.5 cursor-pointer ${
-              activeAppTab === "dashboard"
-                ? "border-slate-900 text-slate-900"
-                : "border-transparent text-slate-400 hover:text-slate-600"
-            }`}
-          >
-            <LayoutDashboard className="w-3.5 h-3.5" />
-            Dashboard
-          </button>
-          <button
-            onClick={() => setActiveAppTab("ai_hub")}
-            className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all border-b-2 flex items-center gap-1.5 cursor-pointer ${
-              activeAppTab === "ai_hub"
-                ? "border-slate-900 text-slate-900"
-                : "border-transparent text-slate-400 hover:text-slate-600"
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-500 fill-emerald-50" />
-            Calm AI Hub
-          </button>
-        </div>
-      </div>
-
-      {/* Dashboard Content Grid */}
-      <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-8 flex-1">
-        {activeAppTab === "ai_hub" ? (
-          <CalmAIHub loans={loans} profile={activeUser} />
-        ) : (
-          <>
-            {/* Feature B: Buffer Day Safe Zone Timeline */}
-        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm mb-8 relative overflow-hidden">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100/50 pb-4 mb-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
-                <ShieldCheck className="w-5.5 h-5.5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-800 tracking-tight">Buffer Day Safe Zone</h3>
-                <p className="text-[10px] text-slate-400 font-medium">Cognitive cushion for current month EMIs</p>
-              </div>
-            </div>
-            {latestDueDay > 0 ? (
-              <div className="px-4 py-2 bg-emerald-50/50 border border-emerald-100 text-emerald-800 text-xs font-semibold rounded-2xl flex items-center gap-2">
-                <Shield className="w-4 h-4 text-emerald-600 animate-pulse fill-emerald-100" />
-                <span>
-                  Keep <strong>{formatCurrency(activeEmiSum)}</strong> in account until the <strong>{latestDueDay}th</strong>. After this, your budget is in the clear.
-                </span>
-              </div>
-            ) : (
-              <div className="px-4 py-2 bg-slate-50 border border-slate-100 text-slate-500 text-xs font-semibold rounded-2xl">
-                No active obligations this month.
-              </div>
-            )}
-          </div>
-
-          {/* Timeline track */}
-          <div className="relative pt-6 pb-2 px-2">
-            <div className="h-2 w-full bg-slate-100 rounded-full relative">
-              {latestDueDay > 0 && (
-                <div 
-                  className="h-full bg-rose-100/70 border-r border-rose-300 transition-all duration-500 rounded-l-full absolute left-0"
-                  style={{ width: `${(latestDueDay / 31) * 100}%` }}
-                />
-              )}
-              {latestDueDay > 0 && (
-                <div 
-                  className="h-full bg-emerald-50/50 absolute top-0 rounded-r-full"
-                  style={{ left: `${(latestDueDay / 31) * 100}%`, width: `${((31 - latestDueDay) / 31) * 100}%` }}
-                />
-              )}
-            </div>
-
-            {/* Markers */}
-            {commitmentsLoansList.map((loan) => {
-              const position = (loan.emiDayOfMonth / 31) * 100;
-              return (
-                <div
-                  key={loan.loanId}
-                  className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer"
-                  style={{ left: `${position}%` }}
-                >
-                  <div className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 shadow-sm ${
-                    loan.status === "Paused"
-                      ? "bg-amber-400 border-white ring-2 ring-amber-100"
-                      : loan.pendingMissed
-                      ? "bg-rose-400 border-white ring-2 ring-rose-100"
-                      : "bg-emerald-500 border-white ring-2 ring-emerald-100"
-                  }`} />
-                  <div className="absolute bottom-6 scale-0 group-hover:scale-100 bg-slate-900 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl shadow-lg whitespace-nowrap transition-all z-20 flex flex-col items-center border border-slate-800">
-                    <span className="font-extrabold">{loan.nickname}</span>
-                    <span className="text-[9px] text-slate-400 font-medium">
-                      {formatCurrency(loan.emiAmount)} (Due {loan.emiDayOfMonth}th)
-                    </span>
-                    {loan.owner && (
-                      <span className="text-[8px] uppercase tracking-wider bg-slate-800 text-slate-300 px-1 py-0.5 rounded mt-1 border border-slate-700">
-                        {loan.owner}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[9px] font-bold text-slate-400 mt-5">{loan.emiDayOfMonth}</span>
-                </div>
-              );
-            })}
-
-            <div className="flex justify-between text-[9px] text-slate-350 font-bold mt-2">
-              <span>Day 1</span>
-              <span>Day 31</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* MAIN VIEW PANEL */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         
-        {/* Left Column: Metrics & Loan Commitments */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Health widget */}
-          <BreathingRoomWidget
-            uid={activeUser.uid}
-            monthlyIncome={displayIncome}
-            totalActiveEmis={totalActiveEmis}
-            fcmTokens={activeUser.fcmTokens}
-            onUpdateIncome={() => {
-              setNewIncome(activeUser.monthlyIncome.toString());
-              setIsIncomeOpen(true);
-            }}
-          />
+        {/* Global SaaS Header */}
+        <header className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-150 h-16 shrink-0 flex items-center justify-between px-6 lg:px-8 z-10 shadow-sm">
+          {/* Menu Title */}
+          <div className="flex items-center gap-3">
+            <h2 className="text-xs font-black text-slate-700 uppercase tracking-wider">
+              {MENU_ITEMS.find((m) => m.id === activeAppMenu)?.label}
+            </h2>
+          </div>
 
-          {/* Active Loans Section */}
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-extrabold text-slate-800 tracking-tight">
-                  {isFamilyView ? "Family Shared Commitments" : "Your Active Commitments"}
-                </h2>
-                <p className="text-xs text-slate-400">
-                  {isFamilyView ? "Combined schedule for Me, Sarah, and Shared tracks." : "Manage your active installment periods."}
-                </p>
-              </div>
+          {/* Actions & Profile */}
+          <div className="flex items-center gap-4">
+            
+            {/* Global User Info & Quick Export (if in dashboard) */}
+            {activeAppMenu === "dashboard" && (
               <div className="flex items-center gap-3">
                 {/* Family View Toggle */}
                 <button
@@ -816,231 +680,407 @@ export default function Home() {
                     </>
                   )}
                 </div>
-
-                <button
-                  onClick={() => setIsAddOpen(true)}
-                  className="inline-flex items-center gap-1 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-[0.98]"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Loan
-                </button>
-              </div>
-            </div>
-
-            {commitmentsLoansList.length === 0 ? (
-              <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4 border border-emerald-100">
-                  <Smile className="w-6 h-6" />
-                </div>
-                <h3 className="text-base font-bold text-slate-800">You are completely EMI-free!</h3>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
-                  Excellent. You have no active installment cycles. Add a loan using the button above to start tracking.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {commitmentsLoansList.map((loan) => (
-                  <LoanCard
-                    key={loan.loanId}
-                    loan={loan}
-                    onToggleSkip={handleToggleSkip}
-                    onTogglePause={handleTogglePause}
-                    onOpenPaymentModal={(l) => setActivePaymentLoan(l)}
-                    onOpenEditModal={(l) => {
-                      if (loan.loanId.startsWith("family-loan")) {
-                        setSimulationAlertText("Family view simulation loans cannot be edited. Toggle off Family View to modify your actual commitments.");
-                      } else {
-                        setActiveEditLoan(l);
-                      }
-                    }}
-                    onDeleteLoan={(loanId) => {
-                      if (loan.loanId.startsWith("family-loan")) {
-                        setSimulationAlertText("Family view simulation loans cannot be deleted. Toggle off Family View to modify your actual commitments.");
-                      } else {
-                        setActiveDeleteLoan(loan);
-                      }
-                    }}
-                  />
-                ))}
               </div>
             )}
-          </div>
 
-          {/* Completed Commitments Section */}
-          {closedLoansList.length > 0 && (
-            <div className="space-y-4 pt-4 border-t border-slate-150">
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-600 tracking-tight flex items-center gap-1.5">
-                  <CheckCircle className="w-4 h-4 text-slate-400" />
-                  Completed Commitments ({closedLoansList.length})
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  Well done! These obligations are fully closed and behind you.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-60">
-                {closedLoansList.map((loan) => (
-                  <LoanCard
-                    key={loan.loanId}
-                    loan={loan}
-                    onToggleSkip={handleToggleSkip}
-                    onTogglePause={handleTogglePause}
-                    onOpenPaymentModal={(l) => setActivePaymentLoan(l)}
-                    onOpenEditModal={(l) => {
-                      if (loan.loanId.startsWith("family-loan")) {
-                        setSimulationAlertText("Family view simulation loans cannot be edited. Toggle off Family View to modify your actual commitments.");
-                      } else {
-                        setActiveEditLoan(l);
-                      }
-                    }}
-                    onDeleteLoan={(loanId) => {
-                      if (loan.loanId.startsWith("family-loan")) {
-                        setSimulationAlertText("Family view simulation loans cannot be deleted. Toggle off Family View to modify your actual commitments.");
-                      } else {
-                        setActiveDeleteLoan(loan);
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: Timeline & Advice */}
-        <div className="space-y-6">
-          
-          {/* Calm AI Hub Invitation Banner */}
-          <div className="p-6 bg-gradient-to-tr from-slate-900 via-slate-850 to-slate-950 text-white border border-slate-800 rounded-3xl shadow-md relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
+            {currentUser.role === "admin" && !impersonatedUser && (
+              <button
+                onClick={() => setIsAdminMode(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800/90 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
+              >
+                <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                Admin Panel
+              </button>
+            )}
             
-            <h4 className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 fill-emerald-500 stroke-none" />
-              Smart Calm AI Advisor
-            </h4>
-            <h3 className="text-base font-extrabold text-white tracking-tight">Unlock Financial Wisdom</h3>
-            <p className="text-[11px] text-slate-300 mt-1 mb-5 leading-relaxed font-semibold">
-              Analyze your current commitments, simulate salary hikes, track future goals, plan emergency funds, and boost your credit health.
-            </p>
-
             <button
-              onClick={() => setActiveAppTab("ai_hub")}
-              className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+              onClick={openProfileSettings}
+              className="p-2 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-xl transition-all cursor-pointer shadow-sm"
+              title="Profile & Currency Settings"
             >
-              Consult AI Advisor
-              <ArrowRight className="w-4 h-4" />
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => {
+                signOutUser().then(() => {
+                  setImpersonatedUser(null);
+                  setCurrentUser(null);
+                });
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 bg-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign Out
             </button>
           </div>
+        </header>
 
-          {/* Feature A: Snowball Debt-Free Simulator */}
-          <div className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-emerald-50/50 blur-2xl pointer-events-none" />
-            
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <TrendingDown className="w-4 h-4 text-emerald-500 fill-emerald-50" />
-              Snowball Debt Simulator
-            </h4>
-            <h3 className="text-base font-extrabold text-slate-800 tracking-tight">Accelerate Your Freedom</h3>
-            <p className="text-[11px] text-slate-450 mt-1 mb-5 leading-normal">
-              Adding a tiny extra lump sum to your debt repayment speeds up payoff exponentially by rolling over cleared EMIs.
-            </p>
-
-            {/* Slider */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-slate-500">Fictional Monthly Extra:</span>
-                <span className="font-bold text-emerald-600 text-xs bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
-                  +{formatCurrency(snowballExtra)}/mo
-                </span>
-              </div>
-              
-              <input
-                type="range"
-                min="0"
-                max="10000"
-                step="500"
-                value={snowballExtra}
-                onChange={(e) => setSnowballExtra(Number(e.target.value))}
-                className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-500 focus:outline-none"
-              />
-              
-              <div className="flex justify-between text-[10px] font-bold text-slate-300">
-                <span>{currencySymbol}0</span>
-                <span>{currencySymbol}5,000</span>
-                <span>{currencySymbol}10,000</span>
-              </div>
-            </div>
-
-            {/* Results */}
-            <div className="mt-5 p-4 bg-emerald-50/30 border border-emerald-100/50 rounded-2xl text-center">
-              {snowballExtra > 0 && snowballStats.savedMonths > 0 ? (
-                <div className="space-y-1 animate-in fade-in zoom-in-95 duration-200">
-                  <p className="text-xs font-bold text-emerald-800 leading-tight">
-                    One-Click Hope: Save {snowballStats.savedMonths} Months!
-                  </p>
-                  <p className="text-[10px] text-emerald-700 leading-normal font-medium">
-                    By adding <strong>+{formatCurrency(snowballExtra)}/mo</strong>, you will become debt-free in <strong>{snowballStats.snowballMonths} months</strong> instead of {snowballStats.standardMonths} months!
-                  </p>
-                </div>
-              ) : (
-                <p className="text-[10px] text-slate-455 text-slate-400 leading-normal font-medium">
-                  Move the slider above to see how quickly you can become completely EMI-free!
-                </p>
-              )}
-            </div>
+        {/* Impersonation Banner */}
+        {impersonatedUser && (
+          <div className="bg-emerald-600 text-white px-6 py-2.5 text-xs font-semibold flex items-center justify-between shadow-md z-20 shrink-0">
+            <span className="flex items-center gap-2">
+              <Shield className="w-4 h-4 fill-emerald-500 stroke-white animate-pulse" />
+              <span>Currently inspecting the portfolio of <strong className="underline font-bold">{impersonatedUser.name}</strong> ({impersonatedUser.email})</span>
+            </span>
+            <button
+              onClick={() => {
+                setImpersonatedUser(null);
+                setIsAdminMode(true);
+              }}
+              className="px-3 py-1 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all cursor-pointer font-bold border border-white/10"
+            >
+              Return to Admin Panel
+            </button>
           </div>
-
-          {/* Upcoming Schedule Timeline */}
-          <Timeline loans={displayLoans} />
-
-          {/* stress-relief high empathy advice card */}
-          <div className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 rounded-full bg-emerald-50/50 blur-xl pointer-events-none" />
-            
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-500 fill-emerald-100" />
-              Mindful Budgeting
-            </h4>
-            
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-slate-800 leading-tight">No penalizing jargon</p>
-                <p className="text-[11px] text-slate-500 leading-normal">
-                  Debt triggers stress. We focus purely on remaining tenure cycles and "Breathing Room". You won't find credit scores, debt flags, or warning bells here.
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-slate-800 leading-tight">Using the Skip Month feature</p>
-                <p className="text-[11px] text-slate-500 leading-normal">
-                  Need some cash-flow space this month? Toggle the "Skip Month" flag. The sync engine will pause billing, postpones the date, and extends the tenure by 1 month automatically. Zero friction.
-                </p>
-              </div>
-
-              <div className="p-3.5 bg-emerald-50/30 border border-emerald-100/50 rounded-2xl flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span className="text-[10px] text-emerald-800 font-semibold">
-                  You are in control of your financial calendar.
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-          </>
         )}
-    </main>
 
-      {/* FOOTER */}
-      <footer className="max-w-6xl w-full mx-auto px-4 mt-12 text-center text-[10px] text-slate-400 flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 pt-6">
-        <span>© {new Date().getFullYear()} emi.calm. Designed with empathy for financial well-being.</span>
-        <div className="flex items-center gap-3 mt-2 sm:mt-0">
-          <span>Private & Secure</span>
-          <span className="w-1 h-1 bg-slate-300 rounded-full" />
-          <span>FCM Enabled</span>
-        </div>
-      </footer>
+        {/* Content Viewport */}
+        <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
+          {activeAppMenu !== "dashboard" ? (
+            <CalmAIHub loans={loans} profile={activeUser} forcedTab={activeAppMenu as any} />
+          ) : (
+            <div className="space-y-8 animate-in fade-in duration-300">
+              
+              {/* Feature B: Buffer Day Safe Zone Timeline */}
+              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm relative overflow-hidden">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100/50 pb-4 mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                      <ShieldCheck className="w-5.5 h-5.5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-800 tracking-tight">Buffer Day Safe Zone</h3>
+                      <p className="text-[10px] text-slate-400 font-medium">Cognitive cushion for current month EMIs</p>
+                    </div>
+                  </div>
+                  {latestDueDay > 0 ? (
+                    <div className="px-4 py-2 bg-emerald-50/50 border border-emerald-100 text-emerald-800 text-xs font-semibold rounded-2xl flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-emerald-600 animate-pulse fill-emerald-100" />
+                      <span>
+                        Keep <strong>{formatCurrency(activeEmiSum)}</strong> in account until the <strong>{latestDueDay}th</strong>. After this, your budget is in the clear.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="px-4 py-2 bg-slate-50 border border-slate-100 text-slate-500 text-xs font-semibold rounded-2xl">
+                      No active obligations this month.
+                    </div>
+                  )}
+                </div>
+
+                {/* Timeline track */}
+                <div className="relative pt-6 pb-2 px-2">
+                  <div className="h-2 w-full bg-slate-100 rounded-full relative">
+                    {latestDueDay > 0 && (
+                      <div 
+                        className="h-full bg-rose-100/70 border-r border-rose-300 transition-all duration-500 rounded-l-full absolute left-0"
+                        style={{ width: `${(latestDueDay / 31) * 100}%` }}
+                      />
+                    )}
+                    {latestDueDay > 0 && (
+                      <div 
+                        className="h-full bg-emerald-50/50 absolute top-0 rounded-r-full"
+                        style={{ left: `${(latestDueDay / 31) * 100}%`, width: `${((31 - latestDueDay) / 31) * 100}%` }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Markers */}
+                  {commitmentsLoansList.map((loan) => {
+                    const position = (loan.emiDayOfMonth / 31) * 100;
+                    return (
+                      <div
+                        key={loan.loanId}
+                        className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer"
+                        style={{ left: `${position}%` }}
+                      >
+                        <div className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 shadow-sm ${
+                          loan.status === "Paused"
+                            ? "bg-amber-400 border-white ring-2 ring-amber-100"
+                            : loan.pendingMissed
+                            ? "bg-rose-400 border-white ring-2 ring-rose-100"
+                            : "bg-emerald-500 border-white ring-2 ring-emerald-100"
+                        }`} />
+                        <div className="absolute bottom-6 scale-0 group-hover:scale-100 bg-slate-900 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl shadow-lg whitespace-nowrap transition-all z-20 flex flex-col items-center border border-slate-800">
+                          <span className="font-extrabold">{loan.nickname}</span>
+                          <span className="text-[9px] text-slate-400 font-medium">
+                            {formatCurrency(loan.emiAmount)} (Due {loan.emiDayOfMonth}th)
+                          </span>
+                          {loan.owner && (
+                            <span className="text-[8px] uppercase tracking-wider bg-slate-800 text-slate-300 px-1 py-0.5 rounded mt-1 border border-slate-700">
+                              {loan.owner}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-400 mt-5">{loan.emiDayOfMonth}</span>
+                      </div>
+                    );
+                  })}
+
+                  <div className="flex justify-between text-[9px] text-slate-350 font-bold mt-2">
+                    <span>Day 1</span>
+                    <span>Day 31</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Content Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                {/* Left Column: Metrics & Loan Commitments */}
+                <div className="lg:col-span-2 space-y-8">
+                  {/* Health widget */}
+                  <BreathingRoomWidget
+                    uid={activeUser.uid}
+                    monthlyIncome={displayIncome}
+                    totalActiveEmis={totalActiveEmis}
+                    fcmTokens={activeUser.fcmTokens}
+                    onUpdateIncome={() => {
+                      setNewIncome(activeUser.monthlyIncome.toString());
+                      setIsIncomeOpen(true);
+                    }}
+                  />
+
+                  {/* Active Loans Section */}
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h2 className="text-lg font-extrabold text-slate-800 tracking-tight">
+                          {isFamilyView ? "Family Shared Commitments" : "Your Active Commitments"}
+                        </h2>
+                        <p className="text-xs text-slate-400">
+                          {isFamilyView ? "Combined schedule for Me, Sarah, and Shared tracks." : "Manage your active installment periods."}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setIsAddOpen(true)}
+                          className="inline-flex items-center gap-1 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-[0.98]"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Loan
+                        </button>
+                      </div>
+                    </div>
+
+                    {commitmentsLoansList.length === 0 ? (
+                      <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                          <Smile className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-base font-bold text-slate-800">You are completely EMI-free!</h3>
+                        <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+                          Excellent. You have no active installment cycles. Add a loan using the button above to start tracking.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {commitmentsLoansList.map((loan) => (
+                          <LoanCard
+                            key={loan.loanId}
+                            loan={loan}
+                            onToggleSkip={handleToggleSkip}
+                            onTogglePause={handleTogglePause}
+                            onOpenPaymentModal={(l) => setActivePaymentLoan(l)}
+                            onOpenEditModal={(l) => {
+                              if (loan.loanId.startsWith("family-loan")) {
+                                setSimulationAlertText("Family view simulation loans cannot be edited. Toggle off Family View to modify your actual commitments.");
+                              } else {
+                                setActiveEditLoan(l);
+                              }
+                            }}
+                            onDeleteLoan={(loanId) => {
+                              if (loan.loanId.startsWith("family-loan")) {
+                                setSimulationAlertText("Family view simulation loans cannot be deleted. Toggle off Family View to modify your actual commitments.");
+                              } else {
+                                setActiveDeleteLoan(loan);
+                              }
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Completed Commitments Section */}
+                  {closedLoansList.length > 0 && (
+                    <div className="space-y-4 pt-4 border-t border-slate-150">
+                      <div>
+                        <h3 className="text-sm font-extrabold text-slate-600 tracking-tight flex items-center gap-1.5">
+                          <CheckCircle className="w-4 h-4 text-slate-400" />
+                          Completed Commitments ({closedLoansList.length})
+                        </h3>
+                        <p className="text-[11px] text-slate-400">
+                          Well done! These obligations are fully closed and behind you.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-60">
+                        {closedLoansList.map((loan) => (
+                          <LoanCard
+                            key={loan.loanId}
+                            loan={loan}
+                            onToggleSkip={handleToggleSkip}
+                            onTogglePause={handleTogglePause}
+                            onOpenPaymentModal={(l) => setActivePaymentLoan(l)}
+                            onOpenEditModal={(l) => {
+                              if (loan.loanId.startsWith("family-loan")) {
+                                setSimulationAlertText("Family view simulation loans cannot be edited. Toggle off Family View to modify your actual commitments.");
+                              } else {
+                                setActiveEditLoan(l);
+                              }
+                            }}
+                            onDeleteLoan={(loanId) => {
+                              if (loan.loanId.startsWith("family-loan")) {
+                                setSimulationAlertText("Family view simulation loans cannot be deleted. Toggle off Family View to modify your actual commitments.");
+                              } else {
+                                setActiveDeleteLoan(loan);
+                              }
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column: Timeline & Advice */}
+                <div className="space-y-6">
+                  
+                  {/* Calm AI Hub Invitation Banner */}
+                  <div className="p-6 bg-gradient-to-tr from-slate-900 via-slate-855 to-slate-950 text-white border border-slate-800 rounded-3xl shadow-md relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
+                    
+                    <h4 className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 fill-emerald-500 stroke-none" />
+                      Smart Calm AI Advisor
+                    </h4>
+                    <h3 className="text-base font-extrabold text-white tracking-tight">Unlock Financial Wisdom</h3>
+                    <p className="text-[11px] text-slate-300 mt-1 mb-5 leading-relaxed font-semibold">
+                      Analyze your current commitments, simulate salary hikes, track future goals, plan emergency funds, and boost your credit health.
+                    </p>
+
+                    <button
+                      onClick={() => setActiveAppMenu("advisor")}
+                      className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+                    >
+                      Consult AI Advisor
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Feature A: Snowball Debt-Free Simulator */}
+                  <div className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-emerald-50/50 blur-2xl pointer-events-none" />
+                    
+                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <TrendingDown className="w-4 h-4 text-emerald-500 fill-emerald-55 text-emerald-50" />
+                      Snowball Debt Simulator
+                    </h4>
+                    <h3 className="text-base font-extrabold text-slate-800 tracking-tight">Accelerate Your Freedom</h3>
+                    <p className="text-[11px] text-slate-450 mt-1 mb-5 leading-normal">
+                      Adding a tiny extra lump sum to your debt repayment speeds up payoff exponentially by rolling over cleared EMIs.
+                    </p>
+
+                    {/* Slider */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between text-xs font-semibold">
+                        <span className="text-slate-500">Fictional Monthly Extra:</span>
+                        <span className="font-bold text-emerald-600 text-xs bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                          +{formatCurrency(snowballExtra)}/mo
+                        </span>
+                      </div>
+                      
+                      <input
+                        type="range"
+                        min="0"
+                        max="10000"
+                        step="500"
+                        value={snowballExtra}
+                        onChange={(e) => setSnowballExtra(Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-500 focus:outline-none"
+                      />
+                      
+                      <div className="flex justify-between text-[10px] font-bold text-slate-300">
+                        <span>{currencySymbol}0</span>
+                        <span>{currencySymbol}5,000</span>
+                        <span>{currencySymbol}10,000</span>
+                      </div>
+                    </div>
+
+                    {/* Results */}
+                    <div className="mt-5 p-4 bg-emerald-50/30 border border-emerald-100/50 rounded-2xl text-center">
+                      {snowballExtra > 0 && snowballStats.savedMonths > 0 ? (
+                        <div className="space-y-1 animate-in fade-in zoom-in-95 duration-200">
+                          <p className="text-xs font-bold text-emerald-800 leading-tight">
+                            One-Click Hope: Save {snowballStats.savedMonths} Months!
+                          </p>
+                          <p className="text-[10px] text-emerald-700 leading-normal font-medium">
+                            By adding <strong>+{formatCurrency(snowballExtra)}/mo</strong>, you will become debt-free in <strong>{snowballStats.snowballMonths} months</strong> instead of {snowballStats.standardMonths} months!
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-400 leading-normal font-medium">
+                          Move the slider above to see how quickly you can become completely EMI-free!
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Upcoming Schedule Timeline */}
+                  <Timeline loans={displayLoans} />
+
+                  {/* stress-relief high empathy advice card */}
+                  <div className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-16 h-16 rounded-full bg-emerald-50/50 blur-xl pointer-events-none" />
+                    
+                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-500 fill-emerald-100" />
+                      Mindful Budgeting
+                    </h4>
+                    
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-slate-800 leading-tight">No penalizing jargon</p>
+                        <p className="text-[11px] text-slate-500 leading-normal">
+                          Debt triggers stress. We focus purely on remaining tenure cycles and "Breathing Room". You won't find credit scores, debt flags, or warning bells here.
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-slate-800 leading-tight">Using the Skip Month feature</p>
+                        <p className="text-[11px] text-slate-500 leading-normal">
+                          Need some cash-flow space this month? Toggle the "Skip Month" flag. The sync engine will pause billing, postpones the date, and extends the tenure by 1 month automatically. Zero friction.
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 bg-emerald-50/30 border border-emerald-100/50 rounded-2xl flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span className="text-[10px] text-emerald-800 font-semibold">
+                          You are in control of your financial calendar.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+          )}
+        </main>
+
+        {/* Global SaaS Footer */}
+        <footer className="w-full px-6 lg:px-8 py-6 text-center text-[10px] text-slate-400 flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 shrink-0">
+          <span>© {new Date().getFullYear()} emi.calm SaaS. Designed with empathy for financial well-being.</span>
+          <div className="flex items-center gap-3 mt-2 sm:mt-0">
+            <span>Private & Secure</span>
+            <span className="w-1 h-1 bg-slate-300 rounded-full" />
+            <span>FCM Enabled</span>
+          </div>
+        </footer>
+
+      </div>
 
       {/* MODALS */}
 
@@ -1165,7 +1205,7 @@ export default function Home() {
                   type="text"
                   value={profileName}
                   onChange={(e) => setProfileName(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-705 text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 transition-all font-semibold"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 transition-all font-semibold"
                 />
               </div>
 
@@ -1179,7 +1219,7 @@ export default function Home() {
                   type="number"
                   value={profileIncome}
                   onChange={(e) => setProfileIncome(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-705 text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 transition-all font-bold"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 transition-all font-bold"
                 />
               </div>
 
