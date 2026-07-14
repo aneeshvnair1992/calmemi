@@ -22,6 +22,8 @@ import AddLoanModal from "../components/AddLoanModal";
 import PaymentModal from "../components/PaymentModal";
 import AdminPanel from "../components/AdminPanel";
 import EditLoanModal from "../components/EditLoanModal";
+import CalmAIHub from "../components/CalmAIHub";
+import { exportToCSV, exportToExcel, exportToPDF } from "../lib/exportUtils";
 import {
   Plus,
   Heart,
@@ -38,7 +40,11 @@ import {
   TrendingDown,
   BookOpen,
   Settings,
-  Trash2
+  Trash2,
+  Download,
+  ChevronDown,
+  FileSpreadsheet,
+  ArrowRight
 } from "lucide-react";
 
 interface DashboardLoan extends Loan {
@@ -116,6 +122,8 @@ export default function Home() {
   // Advanced features states
   const [isFamilyView, setIsFamilyView] = useState(false);
   const [snowballExtra, setSnowballExtra] = useState(0);
+  const [activeAppTab, setActiveAppTab] = useState<"dashboard" | "ai_hub">("dashboard");
+  const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -600,10 +608,41 @@ export default function Home() {
         </div>
       )}
 
+      {/* Tab Navigation */}
+      <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        <div className="border-b border-slate-200 flex gap-6">
+          <button
+            onClick={() => setActiveAppTab("dashboard")}
+            className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all border-b-2 flex items-center gap-1.5 cursor-pointer ${
+              activeAppTab === "dashboard"
+                ? "border-slate-900 text-slate-900"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            }`}
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            Dashboard
+          </button>
+          <button
+            onClick={() => setActiveAppTab("ai_hub")}
+            className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all border-b-2 flex items-center gap-1.5 cursor-pointer ${
+              activeAppTab === "ai_hub"
+                ? "border-slate-900 text-slate-900"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-500 fill-emerald-50" />
+            Calm AI Hub
+          </button>
+        </div>
+      </div>
+
       {/* Dashboard Content Grid */}
       <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-8 flex-1">
-        
-        {/* Feature B: Buffer Day Safe Zone Timeline */}
+        {activeAppTab === "ai_hub" ? (
+          <CalmAIHub loans={loans} profile={activeUser} />
+        ) : (
+          <>
+            {/* Feature B: Buffer Day Safe Zone Timeline */}
         <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm mb-8 relative overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100/50 pb-4 mb-5">
             <div className="flex items-center gap-3">
@@ -726,6 +765,58 @@ export default function Home() {
                   {isFamilyView ? "Individual View" : "Family View"}
                 </button>
 
+                {/* Export Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsExportOpen(!isExportOpen)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:border-slate-350 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                  {isExportOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-20 bg-transparent" 
+                        onClick={() => setIsExportOpen(false)} 
+                      />
+                      <div className="absolute right-0 mt-2 w-44 bg-white border border-slate-100 rounded-2xl shadow-xl py-2 z-30 animate-in fade-in zoom-in-95 duration-150">
+                        <button
+                          onClick={() => {
+                            exportToCSV(loans, activeUser);
+                            setIsExportOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-850 hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-2"
+                        >
+                          <BookOpen className="w-4 h-4 text-slate-400" />
+                          Export as CSV
+                        </button>
+                        <button
+                          onClick={() => {
+                            exportToExcel(loans, activeUser);
+                            setIsExportOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-850 hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-2"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                          Export as Excel (.xlsx)
+                        </button>
+                        <button
+                          onClick={() => {
+                            exportToPDF(loans, activeUser);
+                            setIsExportOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-850 hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-2"
+                        >
+                          <Sparkles className="w-4 h-4 text-indigo-500" />
+                          Export as PDF
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+
                 <button
                   onClick={() => setIsAddOpen(true)}
                   className="inline-flex items-center gap-1 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-[0.98]"
@@ -820,6 +911,28 @@ export default function Home() {
         {/* Right Column: Timeline & Advice */}
         <div className="space-y-6">
           
+          {/* Calm AI Hub Invitation Banner */}
+          <div className="p-6 bg-gradient-to-tr from-slate-900 via-slate-850 to-slate-950 text-white border border-slate-800 rounded-3xl shadow-md relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
+            
+            <h4 className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 fill-emerald-500 stroke-none" />
+              Smart Calm AI Advisor
+            </h4>
+            <h3 className="text-base font-extrabold text-white tracking-tight">Unlock Financial Wisdom</h3>
+            <p className="text-[11px] text-slate-300 mt-1 mb-5 leading-relaxed font-semibold">
+              Analyze your current commitments, simulate salary hikes, track future goals, plan emergency funds, and boost your credit health.
+            </p>
+
+            <button
+              onClick={() => setActiveAppTab("ai_hub")}
+              className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+            >
+              Consult AI Advisor
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+
           {/* Feature A: Snowball Debt-Free Simulator */}
           <div className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-emerald-50/50 blur-2xl pointer-events-none" />
@@ -915,6 +1028,8 @@ export default function Home() {
           </div>
         </div>
       </div>
+          </>
+        )}
     </main>
 
       {/* FOOTER */}
