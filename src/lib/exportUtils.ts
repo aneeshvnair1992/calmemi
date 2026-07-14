@@ -76,6 +76,7 @@ export function exportToCSV(loans: Loan[], profile: UserProfile) {
 export function exportToExcel(loans: Loan[], profile: UserProfile) {
   const activeLoans = loans.filter((l) => l.status === "Active" || l.status === "Paused");
   const totalActiveEmis = activeLoans.reduce((sum, l) => sum + l.emiAmount, 0);
+  const currency = profile.currency || "USD";
 
   // Summary sheet data
   const summaryData = [
@@ -135,6 +136,12 @@ export function exportToPDF(loans: Loan[], profile: UserProfile) {
   const breathingRoom = Math.max(0, profile.monthlyIncome - totalActiveEmis);
   const emiRatio = profile.monthlyIncome > 0 ? (totalActiveEmis / profile.monthlyIncome) * 100 : 0;
 
+  // Local helper to format currency using safe currency codes instead of special symbols
+  // which Helvetica font in jsPDF fails to render correctly (shows boxes or question marks)
+  const formatPDFCurrency = (num: number) => {
+    return `${currency} ${num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+
   // Title
   doc.setFont("Helvetica", "bold");
   doc.setFontSize(22);
@@ -168,12 +175,12 @@ export function exportToPDF(loans: Loan[], profile: UserProfile) {
   doc.setFont("Helvetica", "bold");
   doc.text("Monthly Income:", 18, 62);
   doc.setFont("Helvetica", "normal");
-  doc.text(formatCurrency(profile.monthlyIncome), 50, 62);
+  doc.text(formatPDFCurrency(profile.monthlyIncome), 50, 62);
 
   doc.setFont("Helvetica", "bold");
   doc.text("Total Monthly EMI:", 18, 68);
   doc.setFont("Helvetica", "normal");
-  doc.text(formatCurrency(totalActiveEmis), 50, 68);
+  doc.text(formatPDFCurrency(totalActiveEmis), 50, 68);
 
   doc.setFont("Helvetica", "bold");
   doc.text("Breathing Room:", 18, 74);
@@ -186,7 +193,7 @@ export function exportToPDF(loans: Loan[], profile: UserProfile) {
   } else {
     doc.setTextColor(5, 150, 105); // Emerald 600
   }
-  doc.text(formatCurrency(breathingRoom), 50, 74);
+  doc.text(formatPDFCurrency(breathingRoom), 50, 74);
   doc.setTextColor(71, 85, 105);
   doc.setFont("Helvetica", "normal");
 
@@ -226,9 +233,9 @@ export function exportToPDF(loans: Loan[], profile: UserProfile) {
         loan.nickname,
         loan.provider,
         loan.loanType,
-        formatCurrency(loan.emiAmount),
+        formatPDFCurrency(loan.emiAmount),
         `${loan.monthsCompleted}/${loan.totalTenureMonths} mo`,
-        formatCurrency(outstanding),
+        formatPDFCurrency(outstanding),
         `${loan.emiDayOfMonth}th`
       ];
     });
@@ -238,12 +245,16 @@ export function exportToPDF(loans: Loan[], profile: UserProfile) {
       head: activeHeaders,
       body: activeRows,
       theme: "striped",
-      headStyles: { fillColor: [15, 23, 42], fontSize: 9, fontStyle: "bold" },
-      bodyStyles: { fontSize: 8.5 },
+      headStyles: { fillColor: [15, 23, 42], fontSize: 8.5, fontStyle: "bold" },
+      bodyStyles: { fontSize: 8 },
       columnStyles: {
-        3: { halign: "right" },
-        5: { halign: "right" },
-        6: { halign: "center" }
+        0: { cellWidth: "auto" },
+        1: { cellWidth: "auto" },
+        2: { cellWidth: "auto" },
+        3: { halign: "right", cellWidth: 28 },
+        4: { halign: "center", cellWidth: 22 },
+        5: { halign: "right", cellWidth: 32 },
+        6: { halign: "center", cellWidth: 18 }
       },
       margin: { left: 14, right: 14 }
     });
@@ -274,7 +285,7 @@ export function exportToPDF(loans: Loan[], profile: UserProfile) {
       loan.nickname,
       loan.provider,
       loan.loanType,
-      formatCurrency(loan.emiAmount),
+      formatPDFCurrency(loan.emiAmount),
       `${loan.totalTenureMonths} months`,
       "Closed & Free"
     ]);
@@ -284,10 +295,15 @@ export function exportToPDF(loans: Loan[], profile: UserProfile) {
       head: completedHeaders,
       body: completedRows,
       theme: "striped",
-      headStyles: { fillColor: [100, 116, 139], fontSize: 9, fontStyle: "bold" },
-      bodyStyles: { fontSize: 8.5, textColor: [100, 116, 139] },
+      headStyles: { fillColor: [100, 116, 139], fontSize: 8.5, fontStyle: "bold" },
+      bodyStyles: { fontSize: 8, textColor: [100, 116, 139] },
       columnStyles: {
-        3: { halign: "right" }
+        0: { cellWidth: "auto" },
+        1: { cellWidth: "auto" },
+        2: { cellWidth: "auto" },
+        3: { halign: "right", cellWidth: 28 },
+        4: { halign: "center", cellWidth: 28 },
+        5: { halign: "center", cellWidth: 28 }
       },
       margin: { left: 14, right: 14 }
     });
