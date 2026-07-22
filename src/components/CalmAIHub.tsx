@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Loan, UserProfile } from "../lib/storage";
-import { formatCurrency, getEstimatedOutstanding, getRemainingMonths } from "../lib/utils";
+import { formatCurrency, getEstimatedOutstanding, getRemainingMonths, CURRENCIES } from "../lib/utils";
 import {
   Brain,
   Sparkles,
@@ -23,13 +23,16 @@ import {
   Info,
   Calendar,
   Lock,
-  ArrowRight
+  ArrowRight,
+  Search,
+  Check
 } from "lucide-react";
 
 interface CalmAIHubProps {
   loans: Loan[];
   profile: UserProfile;
   forcedTab?: TabType;
+  onUpdateProfile?: (data: Partial<UserProfile>) => Promise<void>;
 }
 
 type TabType =
@@ -57,7 +60,7 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-export default function CalmAIHub({ loans, profile, forcedTab }: CalmAIHubProps) {
+export default function CalmAIHub({ loans, profile, forcedTab, onUpdateProfile }: CalmAIHubProps) {
   const [activeTabState, setActiveTabState] = useState<TabType>("advisor");
   const activeTab = forcedTab || activeTabState;
   const setActiveTab = setActiveTabState;
@@ -443,6 +446,7 @@ To explore further, you can ask me:
   // 8. SALARY HIKE SIMULATOR STATE & LOGIC
   // ---------------------------------------------------------------------------
   const [hikePercentage, setHikePercentage] = useState(15);
+  const [simCurrencySearch, setSimCurrencySearch] = useState("");
   const [allocationPrepayment, setAllocationPrepayment] = useState(40);
   const [allocationSavings, setAllocationSavings] = useState(30);
   const [allocationSIP, setAllocationSIP] = useState(20);
@@ -1436,6 +1440,63 @@ To explore further, you can ask me:
 
             <div className="space-y-6">
               
+              {/* Currency Selection inside Salary Tab */}
+              <div className="p-4 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Change Preferred Currency:</span>
+                  <span className="font-bold text-pink-655 text-pink-600 text-xs bg-pink-50 px-2.5 py-0.5 rounded-full border border-pink-100 flex items-center gap-1">
+                    {CURRENCIES.find((c) => c.code === profile.currency)?.flag || "🏳️"} {profile.currency || "USD"}
+                  </span>
+                </div>
+                
+                <div className="relative">
+                  {/* Search Input for Sim Currency */}
+                  <div className="relative mb-2">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={simCurrencySearch}
+                      onChange={(e) => setSimCurrencySearch(e.target.value)}
+                      placeholder="Search and change currency..."
+                      className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-xl text-[10px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all font-semibold"
+                    />
+                  </div>
+
+                  {/* Filtered List */}
+                  <div className="h-28 overflow-y-auto border border-slate-100 rounded-xl p-1.5 bg-white space-y-1 scrollbar-thin">
+                    {CURRENCIES.filter(
+                      (curr) =>
+                        curr.code.toLowerCase().includes(simCurrencySearch.toLowerCase()) ||
+                        curr.name.toLowerCase().includes(simCurrencySearch.toLowerCase())
+                    ).map((curr) => {
+                      const isSelected = profile.currency === curr.code;
+                      return (
+                        <button
+                          key={curr.code}
+                          type="button"
+                          onClick={async () => {
+                            if (onUpdateProfile) {
+                              await onUpdateProfile({ currency: curr.code });
+                            }
+                          }}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-pink-500 text-white shadow-sm"
+                              : "text-slate-650 hover:bg-slate-50 text-slate-600 border border-slate-50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs">{curr.flag}</span>
+                            <span>{curr.code} - {curr.name}</span>
+                          </div>
+                          {isSelected && <Check className="w-3 h-3 text-white" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
               {/* Hike slider input */}
               <div className="space-y-3 p-4 bg-slate-50/50 border border-slate-100 rounded-2xl">
                 <div className="flex items-center justify-between text-xs font-semibold">

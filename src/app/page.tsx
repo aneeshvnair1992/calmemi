@@ -12,7 +12,7 @@ import {
   UserProfile,
   Loan
 } from "../lib/storage";
-import { formatCurrency, getEstimatedOutstanding, setGlobalCurrency, getGlobalCurrency } from "../lib/utils";
+import { formatCurrency, getEstimatedOutstanding, setGlobalCurrency, getGlobalCurrency, CURRENCIES } from "../lib/utils";
 import AuthPage from "../components/AuthPage";
 import OnboardingWizard from "../components/OnboardingWizard";
 import BreathingRoomWidget from "../components/BreathingRoomWidget";
@@ -144,6 +144,7 @@ export default function Home() {
   const [activeAppMenu, setActiveAppMenu] = useState<string>("dashboard");
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -161,6 +162,7 @@ export default function Home() {
   const [profileName, setProfileName] = useState("");
   const [profileIncome, setProfileIncome] = useState("");
   const [profileCurrency, setProfileCurrency] = useState("USD");
+  const [profileCurrencySearch, setProfileCurrencySearch] = useState("");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
@@ -383,6 +385,28 @@ export default function Home() {
     }
   };
 
+  const handleUpdateProfile = async (updatedData: Partial<UserProfile>) => {
+    const targetUser = impersonatedUser || currentUser;
+    if (!targetUser) return;
+    
+    await updateProfile(targetUser.uid, updatedData);
+    
+    if (updatedData.currency) {
+      setGlobalCurrency(updatedData.currency);
+    }
+    
+    const updated = {
+      ...targetUser,
+      ...updatedData,
+    };
+    
+    if (impersonatedUser) {
+      setImpersonatedUser(updated);
+    } else if (currentUser) {
+      setCurrentUser(updated);
+    }
+  };
+
   const openProfileSettings = () => {
     const activeUser = impersonatedUser || currentUser;
     if (activeUser) {
@@ -412,29 +436,12 @@ export default function Home() {
       return;
     }
 
-    const activeUser = impersonatedUser || currentUser;
-    if (!activeUser) return;
-
     try {
-      await updateProfile(activeUser.uid, {
+      await handleUpdateProfile({
         name: profileName.trim(),
         monthlyIncome: incomeVal,
         currency: profileCurrency,
       });
-      setGlobalCurrency(profileCurrency);
-
-      const updated = {
-        ...activeUser,
-        name: profileName.trim(),
-        monthlyIncome: incomeVal,
-        currency: profileCurrency,
-      };
-
-      if (impersonatedUser) {
-        setImpersonatedUser(updated);
-      } else if (currentUser) {
-        setCurrentUser(updated);
-      }
       setIsProfileSettingsOpen(false);
     } catch (err: any) {
       setProfileError(err.message || "Failed to update profile settings.");
@@ -444,6 +451,12 @@ export default function Home() {
   };
 
   const activeUser = impersonatedUser || currentUser;
+
+  useEffect(() => {
+    if (activeUser?.currency) {
+      setGlobalCurrency(activeUser.currency);
+    }
+  }, [activeUser]);
 
   // Family View data injection
   const myDashboardLoans: DashboardLoan[] = loans.map((l) => ({ ...l, owner: "Me" }));
@@ -643,110 +656,137 @@ export default function Home() {
               {MENU_ITEMS.find((m) => m.id === activeAppMenu)?.label}
             </h2>
           </div>
-
-          {/* Actions & Profile */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          {/* Actions & Profile Dropdown */}
+          <div className="flex items-center gap-4">
             
-            {/* Global User Info & Quick Export (if in dashboard) */}
-            {activeAppMenu === "dashboard" && (
-              <div className="flex items-center gap-2 sm:gap-3">
-                {/* Family View Toggle */}
-                <button
-                  onClick={() => setIsFamilyView(!isFamilyView)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ${
-                    isFamilyView
-                      ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100/50"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                  title={isFamilyView ? "Individual View" : "Family View"}
-                >
-                  <Users className="w-4 h-4" />
-                  <span className="hidden sm:inline">{isFamilyView ? "Individual" : "Family View"}</span>
-                </button>
+            {/* Profile Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                className="flex items-center gap-2 p-1.5 sm:p-2 border border-slate-200 hover:border-slate-350 bg-white hover:bg-slate-50 text-slate-700 rounded-xl transition-all cursor-pointer shadow-sm active:scale-98"
+              >
+                <div className="w-7 h-7 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-xs uppercase shadow-sm">
+                  {activeUser.name.charAt(0) || "U"}
+                </div>
+                <span className="hidden md:inline text-xs font-bold">{activeUser.name}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              </button>
 
-                {/* Export Dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={() => setIsExportOpen(!isExportOpen)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:border-slate-350 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span className="hidden sm:inline">Export</span>
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </button>
-                  {isExportOpen && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-20 bg-transparent" 
-                        onClick={() => setIsExportOpen(false)} 
-                      />
-                      <div className="absolute right-0 mt-2 w-44 bg-white border border-slate-100 rounded-2xl shadow-xl py-2 z-30 animate-in fade-in zoom-in-95 duration-150">
+              {isProfileDropdownOpen && (
+                <>
+                  {/* Backdrop to close dropdown */}
+                  <div 
+                    className="fixed inset-0 z-20 bg-transparent" 
+                    onClick={() => setIsProfileDropdownOpen(false)} 
+                  />
+                  
+                  {/* Dropdown Box */}
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-100 rounded-2xl shadow-xl py-2 z-30 animate-in fade-in zoom-in-95 duration-150">
+                    
+                    {/* Profile Header Info */}
+                    <div className="px-4 py-2.5 border-b border-slate-100 mb-1.5">
+                      <p className="text-xs font-bold text-slate-800 leading-none">{activeUser.name}</p>
+                      <p className="text-[10px] text-slate-400 font-medium truncate mt-1">{activeUser.email}</p>
+                    </div>
+
+                    {/* Admin Panel (if admin) */}
+                    {currentUser.role === "admin" && !impersonatedUser && (
+                      <button
+                        onClick={() => {
+                          setIsAdminMode(true);
+                          setIsProfileDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-2"
+                      >
+                        <Shield className="w-4 h-4 text-emerald-600 animate-pulse" />
+                        Admin Panel
+                      </button>
+                    )}
+
+                    {/* Family View Toggle (if on dashboard) */}
+                    {activeAppMenu === "dashboard" && (
+                      <button
+                        onClick={() => {
+                          setIsFamilyView(!isFamilyView);
+                          setIsProfileDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-2"
+                      >
+                        <Users className="w-4 h-4 text-purple-600" />
+                        {isFamilyView ? "Individual View" : "Family View"}
+                      </button>
+                    )}
+
+                    {/* Export Options Sub-Group (if on dashboard) */}
+                    {activeAppMenu === "dashboard" && (
+                      <div className="border-t border-b border-slate-100 my-1.5 py-1.5 bg-slate-50/50">
+                        <div className="px-4 py-1 text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          Export Portfolio
+                        </div>
                         <button
                           onClick={() => {
                             exportToCSV(loans, activeUser);
-                            setIsExportOpen(false);
+                            setIsProfileDropdownOpen(false);
                           }}
-                          className="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-850 hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-2"
+                          className="w-full text-left px-4 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100/50 transition-all cursor-pointer flex items-center gap-2 pl-6"
                         >
-                          <BookOpen className="w-4 h-4 text-slate-400" />
-                          Export as CSV
+                          <BookOpen className="w-3.5 h-3.5 text-slate-400" />
+                          As CSV
                         </button>
                         <button
                           onClick={() => {
                             exportToExcel(loans, activeUser);
-                            setIsExportOpen(false);
+                            setIsProfileDropdownOpen(false);
                           }}
-                          className="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-850 hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-2"
+                          className="w-full text-left px-4 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100/50 transition-all cursor-pointer flex items-center gap-2 pl-6"
                         >
-                          <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-                          Export as Excel (.xlsx)
+                          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+                          As Excel (.xlsx)
                         </button>
                         <button
                           onClick={() => {
                             exportToPDF(loans, activeUser);
-                            setIsExportOpen(false);
+                            setIsProfileDropdownOpen(false);
                           }}
-                          className="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-850 hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-2"
+                          className="w-full text-left px-4 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100/50 transition-all cursor-pointer flex items-center gap-2 pl-6"
                         >
-                          <Sparkles className="w-4 h-4 text-indigo-500" />
-                          Export as PDF
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-550 text-indigo-500" />
+                          As PDF
                         </button>
                       </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
+                    )}
 
-            {currentUser.role === "admin" && !impersonatedUser && (
-              <button
-                onClick={() => setIsAdminMode(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800/90 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
-              >
-                <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                Admin Panel
-              </button>
-            )}
-            
-            <button
-              onClick={openProfileSettings}
-              className="p-2 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-xl transition-all cursor-pointer shadow-sm"
-              title="Profile & Currency Settings"
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => {
-                signOutUser().then(() => {
-                  setImpersonatedUser(null);
-                  setCurrentUser(null);
-                });
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 bg-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              Sign Out
-            </button>
+                    {/* Profile & Currency settings */}
+                    <button
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        openProfileSettings();
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-2"
+                    >
+                      <Settings className="w-4 h-4 text-slate-500" />
+                      Profile & Currency
+                    </button>
+
+                    {/* Sign Out */}
+                    <button
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        signOutUser().then(() => {
+                          setImpersonatedUser(null);
+                          setCurrentUser(null);
+                        });
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all cursor-pointer flex items-center gap-2 border-t border-slate-100 mt-1.5"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
           </div>
         </header>
 
@@ -772,7 +812,7 @@ export default function Home() {
         {/* Content Viewport */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
           {activeAppMenu !== "dashboard" ? (
-            <CalmAIHub loans={loans} profile={activeUser} forcedTab={activeAppMenu as any} />
+            <CalmAIHub loans={loans} profile={activeUser} forcedTab={activeAppMenu as any} onUpdateProfile={handleUpdateProfile} />
           ) : (
             <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
               
@@ -1259,21 +1299,52 @@ export default function Home() {
               </div>
 
               {/* Preferred Currency */}
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1.5" htmlFor="prof-currency">
+              <div className="space-y-2">
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1" htmlFor="prof-currency-search">
                   Preferred Currency
                 </label>
-                <select
-                  id="prof-currency"
-                  value={profileCurrency}
-                  onChange={(e) => setProfileCurrency(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 bg-white"
-                >
-                  <option value="USD">USD ($) - US Dollar</option>
-                  <option value="INR">INR (₹) - Indian Rupee</option>
-                  <option value="EUR">EUR (€) - Euro</option>
-                  <option value="GBP">GBP (£) - British Pound</option>
-                </select>
+                
+                {/* Search input inside modal */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    id="prof-currency-search"
+                    type="text"
+                    value={profileCurrencySearch}
+                    onChange={(e) => setProfileCurrencySearch(e.target.value)}
+                    placeholder="Search currency..."
+                    className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-xl text-[11px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 transition-all font-semibold"
+                  />
+                </div>
+
+                {/* Filtered Currencies Scroll Box */}
+                <div className="h-32 overflow-y-auto border border-slate-100 rounded-2xl p-1.5 bg-slate-50/50 space-y-1 scrollbar-thin">
+                  {CURRENCIES.filter(
+                    (curr) =>
+                      curr.code.toLowerCase().includes(profileCurrencySearch.toLowerCase()) ||
+                      curr.name.toLowerCase().includes(profileCurrencySearch.toLowerCase())
+                  ).map((curr) => {
+                    const isSelected = profileCurrency === curr.code;
+                    return (
+                      <button
+                        key={curr.code}
+                        type="button"
+                        onClick={() => setProfileCurrency(curr.code)}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-slate-900 text-white shadow-sm"
+                            : "text-slate-650 hover:bg-slate-100 text-slate-600 bg-white border border-slate-100/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs">{curr.flag}</span>
+                          <span>{curr.code} - {curr.name} ({curr.symbol})</span>
+                        </div>
+                        {isSelected && <Check className="w-3 h-3 text-emerald-400" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {profileError && (
