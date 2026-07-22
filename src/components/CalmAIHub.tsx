@@ -894,7 +894,7 @@ To explore further, you can ask me:
 
               {/* Outputs Summary & SVG graph */}
               <div className="md:col-span-2 space-y-5 flex flex-col justify-between">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-center">
                     <p className="text-[9px] text-slate-400 font-extrabold uppercase">Total Invested</p>
                     <p className="text-sm font-black text-slate-750 mt-1">{formatCurrency(sipResult.totalInvested)}</p>
@@ -1308,7 +1308,7 @@ To explore further, you can ask me:
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-slate-500">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold text-slate-500">
                     <div className="p-3 bg-white border border-slate-100 rounded-xl">
                       <span className="text-[9px] text-slate-400 block font-bold">TOTAL MONTHLY REQUIREMENT</span>
                       <span className="text-slate-800 font-bold text-sm block mt-0.5">{formatCurrency(totalMonthlyCost)}/mo</span>

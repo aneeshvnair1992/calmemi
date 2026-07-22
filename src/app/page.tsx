@@ -50,7 +50,8 @@ import {
   Gauge,
   ShieldAlert,
   Flame,
-  UserPlus
+  UserPlus,
+  Menu
 } from "lucide-react";
 
 interface DashboardLoan extends Loan {
@@ -142,6 +143,7 @@ export default function Home() {
   const [snowballExtra, setSnowballExtra] = useState(0);
   const [activeAppMenu, setActiveAppMenu] = useState<string>("dashboard");
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -557,17 +559,38 @@ export default function Home() {
       <div className="absolute top-0 left-1/4 w-[700px] h-[500px] rounded-full bg-emerald-500/[0.02] blur-3xl -z-10 pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-indigo-500/[0.015] blur-3xl -z-10 pointer-events-none" />
 
+      {/* Mobile Menu Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-950/60 z-40 md:hidden backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* LEFT SIDEBAR NAVIGATION */}
-      <aside className="w-64 bg-[#0f172a] text-slate-400 flex flex-col shrink-0 border-r border-slate-800 z-20">
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-[#0f172a] text-slate-400 flex flex-col shrink-0 border-r border-slate-800 transition-transform duration-300 md:translate-x-0 md:static md:flex h-screen
+        ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+      `}>
         {/* Brand Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-emerald-600 text-slate-950 flex items-center justify-center shadow-sm">
-            <Heart className="w-4.5 h-4.5 fill-slate-950 stroke-slate-950" />
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-emerald-600 text-slate-950 flex items-center justify-center shadow-sm">
+              <Heart className="w-4.5 h-4.5 fill-slate-950 stroke-slate-950" />
+            </div>
+            <div>
+              <h1 className="text-sm font-black text-white tracking-tight leading-none">calm.emi</h1>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">SaaS Portfolio Portal</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-sm font-black text-white tracking-tight leading-none">calm.emi</h1>
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">SaaS Portfolio Portal</p>
-          </div>
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="md:hidden p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer"
+            title="Close Menu"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Navigation Items */}
@@ -578,7 +601,10 @@ export default function Home() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveAppMenu(item.id)}
+                onClick={() => {
+                  setActiveAppMenu(item.id);
+                  setIsMobileMenuOpen(false); // Auto-close drawer on selection
+                }}
                 className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center gap-3 cursor-pointer ${
                   isActive
                     ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/10"
@@ -602,20 +628,28 @@ export default function Home() {
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         
         {/* Global SaaS Header */}
-        <header className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-150 h-16 shrink-0 flex items-center justify-between px-6 lg:px-8 z-10 shadow-sm">
+        <header className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-150 h-16 shrink-0 flex items-center justify-between px-4 sm:px-6 lg:px-8 z-10 shadow-sm">
           {/* Menu Title */}
           <div className="flex items-center gap-3">
+            {/* Hamburger Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="md:hidden flex items-center justify-center p-2 text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95"
+              title="Open Navigation"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
             <h2 className="text-xs font-black text-slate-700 uppercase tracking-wider">
               {MENU_ITEMS.find((m) => m.id === activeAppMenu)?.label}
             </h2>
           </div>
 
           {/* Actions & Profile */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             
             {/* Global User Info & Quick Export (if in dashboard) */}
             {activeAppMenu === "dashboard" && (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 {/* Family View Toggle */}
                 <button
                   onClick={() => setIsFamilyView(!isFamilyView)}
@@ -624,9 +658,10 @@ export default function Home() {
                       ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100/50"
                       : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
+                  title={isFamilyView ? "Individual View" : "Family View"}
                 >
                   <Users className="w-4 h-4" />
-                  {isFamilyView ? "Individual View" : "Family View"}
+                  <span className="hidden sm:inline">{isFamilyView ? "Individual" : "Family View"}</span>
                 </button>
 
                 {/* Export Dropdown */}
@@ -636,7 +671,7 @@ export default function Home() {
                     className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:border-slate-350 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
                   >
                     <Download className="w-4 h-4" />
-                    Export
+                    <span className="hidden sm:inline">Export</span>
                     <ChevronDown className="w-3.5 h-3.5" />
                   </button>
                   {isExportOpen && (
@@ -735,11 +770,11 @@ export default function Home() {
         )}
 
         {/* Content Viewport */}
-        <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
           {activeAppMenu !== "dashboard" ? (
             <CalmAIHub loans={loans} profile={activeUser} forcedTab={activeAppMenu as any} />
           ) : (
-            <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
               
               {/* Feature B: Buffer Day Safe Zone Timeline */}
               <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm relative overflow-hidden">
@@ -824,10 +859,10 @@ export default function Home() {
               </div>
 
               {/* Main Content Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
                 
                 {/* Left Column: Metrics & Loan Commitments */}
-                <div className="lg:col-span-2 space-y-8">
+                <div className="md:col-span-2 space-y-6 md:space-y-8">
                   {/* Health widget */}
                   <BreathingRoomWidget
                     uid={activeUser.uid}
@@ -1071,7 +1106,7 @@ export default function Home() {
         </main>
 
         {/* Global SaaS Footer */}
-        <footer className="w-full px-6 lg:px-8 py-6 text-center text-[10px] text-slate-400 flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 shrink-0">
+        <footer className="w-full px-4 sm:px-6 lg:px-8 py-6 text-center text-[10px] text-slate-400 flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 shrink-0">
           <span>© {new Date().getFullYear()} emi.calm SaaS. Designed with empathy for financial well-being.</span>
           <div className="flex items-center gap-3 mt-2 sm:mt-0">
             <span>Private & Secure</span>
